@@ -209,8 +209,7 @@ async function handleCommand(event) {
             userCooldown[commandName] = Date.now();
             cooldowns.set(senderID, userCooldown);
 
-            let TLang =
-              _thread?.data?.language || global.config.LANGUAGE || "en_US";
+            let TLang = _thread?.data?.language || global.config.LANGUAGE || "en_US";
             const getLangForCommand = (key, objectData) =>
               getLang(key, objectData, commandName, TLang);
 
@@ -243,21 +242,17 @@ async function handleCommand(event) {
               );
             }
           } else {
-            api.sendMessage(
-              getLang("handlers.commands.nsfwNotAllowed"),
-              threadID,
-              messageID
-            );
+            api.sendMessage(getLang("handlers.commands.nsfwNotAllowed"), threadID, messageID);
           }
         } else {
           api.setMessageReaction("🕓", messageID, null, true);
         }
       } else {
-        // User has no permission - optionally handle this
+        // No permission handler (optional)
       }
     }
   } else {
-    // Command not found - optionally handle this
+    // Command not found handler (optional)
   }
 }
 
@@ -368,52 +363,42 @@ async function handleReply(event) {
   }
 }
 
-// ** onChat function - তোমার চাহিদা অনুযায়ী **
+async function handleMessage(event) {
+  const { api, getLang } = global;
+  const { threadID, senderID } = event;
+  const { Threads, Users } = global.controllers;
 
-export async function onChat(event) {
+  const _thread =
+    event.isGroup === true ? (await Threads.get(threadID)) || {} : {};
+  const _user = (await Users.get(senderID)) || {};
+
+  const data = { user: _user, thread: _thread };
+  if (checkBanStatus(data, senderID)) return;
+
+  // onChat system here
   try {
-    const { api } = global;
     const body = event.body?.toLowerCase().trim();
-
-    // শুধু যখন মেসেজ "/" আসে তখন ig.js এর sendQuoteWithImage ফাংশন কল হবে
     if (body === "/") {
-      const { sendQuoteWithImage } = await import(
-        "../../plugins/commands/group/ig.js"
-      );
+      const { sendQuoteWithImage } = await import("../../plugins/commands/group/ig.js");
       await sendQuoteWithImage(api, event);
     }
   } catch (error) {
     console.error("onChat error:", error);
   }
-}
 
-async function handleMessage(event) {
-  const { Threads, Users } = global.controllers;
-
-  const _thread =
-    event.isGroup === true ? (await Threads.get(event.threadID)) || {} : {};
-  const _user = (await Users.get(event.senderID)) || {};
-
-  const data = { user: _user, thread: _thread };
-  if (checkBanStatus(data, event.senderID)) return;
-
-  // onChat কল করো এখানে
-  await onChat(event);
-
-  // অন্য onMessage হ্যান্ডলারগুলোও যদি থাকে চালাতে চাও, চালাতে পারো নিচের মতো:
+  // onMessage plugin handlers
   for (const [name, callback] of global.plugins.onMessage.entries()) {
     try {
       let TLang = _thread?.data?.language || global.config.LANGUAGE || "en_US";
       const getLangForCommand = (key, objectData) =>
-        global.getLang(key, objectData, name, TLang);
-
+        getLang(key, objectData, name, TLang);
       const extraEventProperties = getExtraEventProperties(event, {
         type: "message",
         commandName: name,
       });
       Object.assign(event, extraEventProperties);
 
-      await callback({
+      callback({
         message: event,
         getLang: getLangForCommand,
         data,
@@ -483,6 +468,5 @@ export default async function () {
     handleMessage,
     handleUnsend,
     handleEvent,
-    onChat, // export করলাম যদি অন্য জায়গায় দরকার হয়
   };
 }
