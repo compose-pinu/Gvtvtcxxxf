@@ -4,11 +4,10 @@ import path from "path";
 
 const config = {
   name: "help",
-  aliases: ["cmds", "commands"],
   version: "1.0.0",
   description: "Show all available commands in a paginated list",
   usage: "[page]",
-  credits: "XaviaTeam"
+  credits: "SK-SIDDIK-KHAN"
 };
 
 async function onCall({ message, args, userPermissions }) {
@@ -19,7 +18,6 @@ async function onCall({ message, args, userPermissions }) {
 
     const page = args[0] && !isNaN(args[0]) ? Math.max(1, parseInt(args[0])) : 1;
 
-    // Collect commands available for this user
     const commands = [];
     for (const [key, value] of global.plugins.commandsConfig.entries()) {
       if (value.isHidden) continue;
@@ -38,23 +36,20 @@ async function onCall({ message, args, userPermissions }) {
     const start = (page - 1) * perPage;
     const pageCommands = commands.slice(start, start + perPage);
 
-    const msg = `┏━[𝗖𝗼𝗺𝗺𝗮𝗻𝗱 𝗟𝗶𝘀𝘁]━➣\n` +
-      pageCommands.map((cmd, i) => `┃ ${start + i + 1}. ${cmd}`).join("\n") + `\n` +
-      `┃━━━━━━━━━━━━━━━➢\n` +
-      `┃ Page: ${page}/${totalPages}\n` +
-      `┃ Total Commands: ${commands.length}\n` +
-      `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
+    const msg = `┏━[𝗟𝗶𝘀𝘁 𝗼𝗳 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀]━➣\n` +
+            pageCommands.map((cmd, i) => `┃━➤  ${start + i + 1} •──⋅☾ ${cmd}`).join("\n") + `\n` +
+            `┃━━━━━━━━━━━━━━━➢\n` +
+            `┃━➤ 𝐏𝐀𝐆𝐄 (${page}/${totalPages})\n` +
+            `┃━➤ 𝗧𝗼𝘁𝗮𝗹 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${allCommands.length} \n` +
+            `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
 
-    // Setup temp directory and image path
     const tempDir = path.join(process.cwd(), "temp");
     if (!existsSync(tempDir)) mkdirSync(tempDir);
 
     const imgPath = path.join(tempDir, "help.jpg");
 
-    // Use your Google Drive direct image URL here
-    const imgUrl = "https://drive.google.com/uc?id=1B8eyMNS7iX1nCYSK4pKDwyrG2h6oaT5C";
+    const imgUrl = "https://drive.google.com/uc?id=10Mnqa_IqX_XmAuAJZtHGLKNTLqQXeWXW";
 
-    // Download the image if it doesn't exist
     if (!existsSync(imgPath)) {
       const response = await axios({
         url: imgUrl,
@@ -70,7 +65,6 @@ async function onCall({ message, args, userPermissions }) {
       });
     }
 
-    // Send the message with the image attached
     return message.reply({
       body: msg,
       attachment: createReadStream(imgPath)
@@ -78,7 +72,7 @@ async function onCall({ message, args, userPermissions }) {
 
   } catch (error) {
     console.error("Help command error:", error);
-    return message.reply("❌ An error occurred while fetching commands.");
+    return message.reply("❌ An error occurred");
   }
 }
 
