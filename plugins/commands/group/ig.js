@@ -1,5 +1,5 @@
 const config = {
-  name: "slash",
+  name: "ig",
   version: "1.0.0",
   description: "Triggers only when user sends '/'",
   usage: "/",
