@@ -1,4 +1,10 @@
-const img = `https://graph.facebook.com/100059026788061/picture?height=720&width=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+import axios from "axios";
+import { createWriteStream } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { createReadStream } from "fs";
+
+const imgUrl = `https://graph.facebook.com/100059026788061/picture?height=720&width=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 
 export default {
   config: {
@@ -34,14 +40,31 @@ export default {
 ├─☾ 𝚃𝙷𝙰𝙽𝙺𝚂 𝙵𝙾𝚁 𝚄𝚂𝙸𝙽𝙶
 ╰────────────────⊙`;
 
+      // Download image to temp path
+      const imgPath = join(tmpdir(), "owner.jpg");
+      const writer = createWriteStream(imgPath);
+      const response = await axios({
+        url: imgUrl,
+        method: "GET",
+        responseType: "stream",
+      });
+
+      response.data.pipe(writer);
+
+      await new Promise((resolve, reject) => {
+        writer.on("finish", resolve);
+        writer.on("error", reject);
+      });
+
+      // Send message with image
       await message.send({
         body: msg,
-        attachment: await global.utils.getStreamFromURL(img)
+        attachment: createReadStream(imgPath)
       });
 
     } catch (e) {
       console.error("❌ info.js error:", e);
-      message.send("⚠️ Something went wrong while sending info.");
+      message.send("⚠️ Couldn't send info, please try again later.");
     }
   }
 };
