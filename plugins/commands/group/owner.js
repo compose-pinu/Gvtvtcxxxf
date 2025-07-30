@@ -1,13 +1,13 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
-module.exports = {
+export default {
   config: {
     name: "owner",
-    author: "Tokodori", // Convert By Goatbot Tokodori
+    author: "Tokodori", // Converted by Goatbot Tokodori
     role: 0,
-    shortDescription: "Show owner info and video",
+    shortDescription: "Show owner information with video",
     longDescription: "",
     category: "admin",
     guide: "{pn}"
@@ -24,10 +24,11 @@ module.exports = {
         nick: 'SIFU'
       };
 
-      const videoUrl = 'https://files.catbox.moe/a86iqb.mp4'; // Replace with your direct video URL
+      const videoUrl = 'https://files.catbox.moe/a86iqb.mp4'; // Direct link to video
 
-      const tmpFolderPath = path.join(__dirname, 'tmp');
+      const tmpFolderPath = path.join(process.cwd(), 'tmp');
 
+      // Create tmp folder if it doesn't exist
       if (!fs.existsSync(tmpFolderPath)) {
         fs.mkdirSync(tmpFolderPath);
       }
@@ -55,12 +56,13 @@ module.exports = {
         attachment: fs.createReadStream(videoPath)
       }, event.threadID, event.messageID);
 
-      if (event.body && event.body.toLowerCase().includes('ownerinfo')) {
+      if (event.body?.toLowerCase().includes('ownerinfo')) {
         api.setMessageReaction('🖤', event.messageID, () => {}, true);
       }
+
     } catch (error) {
-      console.error('Error in owner command:', error);
-      return api.sendMessage('An error occurred while processing the command.', event.threadID);
+      console.error('❌ Error in owner command:', error);
+      return api.sendMessage('⚠️ Error occurred while processing the command.', event.threadID);
     }
   }
 };
