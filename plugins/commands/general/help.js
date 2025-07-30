@@ -12,62 +12,74 @@ const config = {
 };
 
 async function onCall({ message, args, userPermissions }) {
-  const { commandsConfig } = global.plugins;
+  try {
+    if (!global.plugins || !global.plugins.commandsConfig) {
+      return message.reply("❌ Commands data not available.");
+    }
 
-  const page = args[0] && !isNaN(args[0]) ? Math.max(1, parseInt(args[0])) : 1;
+    const page = args[0] && !isNaN(args[0]) ? Math.max(1, parseInt(args[0])) : 1;
 
-  // Group and filter commands
-  let commands = [];
-  for (const [key, value] of commandsConfig.entries()) {
-    if (value.isHidden) continue;
-    if (value.isAbsolute && !global.config?.ABSOLUTES?.includes(message.senderID)) continue;
-    if (!value.permissions) value.permissions = [0, 1, 2];
-    if (!value.permissions.some(p => userPermissions.includes(p))) continue;
-    commands.push(value.name);
-  }
+    // Collect commands available for this user
+    const commands = [];
+    for (const [key, value] of global.plugins.commandsConfig.entries()) {
+      if (value.isHidden) continue;
+      if (value.isAbsolute && !(global.config?.ABSOLUTES || []).includes(message.senderID)) continue;
+      if (!value.permissions) value.permissions = [0, 1, 2];
+      if (!Array.isArray(userPermissions) || !value.permissions.some(p => userPermissions.includes(p))) continue;
+      commands.push(value.name);
+    }
 
-  const perPage = 20;
-  const totalPages = Math.ceil(commands.length / perPage);
-  if (page > totalPages) return message.reply(`❌ Page ${page} doesn't exist. Max: ${totalPages}.`);
+    if (commands.length === 0) return message.reply("❌ No commands available for you.");
 
-  const start = (page - 1) * perPage;
-  const pageCommands = commands.slice(start, start + perPage);
+    const perPage = 20;
+    const totalPages = Math.ceil(commands.length / perPage);
+    if (page > totalPages) return message.reply(`❌ Page ${page} doesn't exist. Max: ${totalPages}.`);
 
-  const msg = `┏━[𝗖𝗼𝗺𝗺𝗮𝗻𝗱 𝗟𝗶𝘀𝘁]━➣\n` +
-    pageCommands.map((cmd, i) => `┃ ${start + i + 1}. ${cmd}`).join("\n") + `\n` +
-    `┃━━━━━━━━━━━━━━━➢\n` +
-    `┃ Page: ${page}/${totalPages}\n` +
-    `┃ Total Commands: ${commands.length}\n` +
-    `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
+    const start = (page - 1) * perPage;
+    const pageCommands = commands.slice(start, start + perPage);
 
-  // Ensure temp folder exists
-  const tempDir = path.join(process.cwd(), "temp");
-  if (!existsSync(tempDir)) mkdirSync(tempDir);
+    const msg = `┏━[𝗖𝗼𝗺𝗺𝗮𝗻𝗱 𝗟𝗶𝘀𝘁]━➣\n` +
+      pageCommands.map((cmd, i) => `┃ ${start + i + 1}. ${cmd}`).join("\n") + `\n` +
+      `┃━━━━━━━━━━━━━━━➢\n` +
+      `┃ Page: ${page}/${totalPages}\n` +
+      `┃ Total Commands: ${commands.length}\n` +
+      `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
 
-  const imgPath = path.join(tempDir, "help.jpg");
-  const imgUrl = "https://i.imgur.com/5KuCPVq.jpeg";
+    // Setup temp directory and image path
+    const tempDir = path.join(process.cwd(), "temp");
+    if (!existsSync(tempDir)) mkdirSync(tempDir);
 
-  // Download image if it doesn't exist
-  if (!existsSync(imgPath)) {
-    const response = await axios({
-      url: imgUrl,
-      method: "GET",
-      responseType: "stream"
+    const imgPath = path.join(tempDir, "help.jpg");
+
+    // Use your Google Drive direct image URL here
+    const imgUrl = "https://drive.google.com/uc?id=1B8eyMNS7iX1nCYSK4pKDwyrG2h6oaT5C";
+
+    // Download the image if it doesn't exist
+    if (!existsSync(imgPath)) {
+      const response = await axios({
+        url: imgUrl,
+        method: "GET",
+        responseType: "stream"
+      });
+
+      const writer = createWriteStream(imgPath);
+      await new Promise((resolve, reject) => {
+        response.data.pipe(writer);
+        writer.on("finish", resolve);
+        writer.on("error", reject);
+      });
+    }
+
+    // Send the message with the image attached
+    return message.reply({
+      body: msg,
+      attachment: createReadStream(imgPath)
     });
 
-    const writer = createWriteStream(imgPath);
-    await new Promise((resolve, reject) => {
-      response.data.pipe(writer);
-      writer.on("finish", resolve);
-      writer.on("error", reject);
-    });
+  } catch (error) {
+    console.error("Help command error:", error);
+    return message.reply("❌ An error occurred while fetching commands.");
   }
-
-  // Send message with image
-  return message.reply({
-    body: msg,
-    attachment: createReadStream(imgPath)
-  });
 }
 
 export default {
