@@ -6,12 +6,12 @@ const config = {
   cooldown: 0,
   description: "Fetch profile picture of a user",
   credits: "SK-SIDDIK-KHAN",
-  usePrefix: false  // true করলে prefix লাগবে, false করলে natural message detect হবে
+  usePrefix: false  // true হলে prefix লাগবে, false হলে natural detect করবে
 };
 
 async function onCall({ message, args, event = {} }) {
-  // Access usersData controller
-  const usersData = global.controllers?.usersData?.();
+  // ইউজার ডাটা কন্ট্রোলার থেকে getAvatarUrl ফাংশন নাও
+  const usersData = global.controllers?.Users || null;  // তোমার controller name অনুযায়ী হতে পারে Users বা usersData
   if (!usersData || typeof usersData.getAvatarUrl !== "function") {
     return message.reply("❌ Error: usersData system not found.");
   }
@@ -40,7 +40,6 @@ async function onCall({ message, args, event = {} }) {
       body: `🖼️ Profile picture of UID: ${uid}`,
       attachment: stream
     });
-
   } catch (error) {
     return message.reply(`⚠️ Error: ${error.message}`);
   }
