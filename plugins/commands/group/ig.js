@@ -1,4 +1,3 @@
-// plugins/commands/group/ig.js
 import axios from "axios";
 
 const config = {
@@ -9,32 +8,31 @@ const config = {
   credits: "YourName",
 };
 
-async function sendQuoteWithImage(api, event) {
+async function onCall({ api, event }) {
   try {
-    const { threadID, messageID } = event;
+    const { threadID, messageID, body } = event;
+    if (body?.trim() === "/") {
+      const imageUrl = "https://i.postimg.cc/3RrJGf7h/top-view-islamic-new-year-concept.jpg";
+      const quoteText = "Islamic New Year Mubarak! 🌙✨";
 
-    const quoteText = "Islamic New Year Mubarak! 🌙✨";
-    const imageUrl = "https://i.postimg.cc/3RrJGf7h/top-view-islamic-new-year-concept.jpg";
+      // ছবি ডাউনলোড
+      const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+      const buffer = Buffer.from(response.data, "utf-8");
 
-    // ছবি ডাউনলোড করা
-    const response = await axios.get(imageUrl, {
-      responseType: "arraybuffer",
-    });
-    const buffer = Buffer.from(response.data, "utf-8");
-
-    // ছবি এবং কোট সহ মেসেজ পাঠানো
-    await api.sendMessage(
-      {
-        caption: quoteText,
-        attachment: buffer,
-      },
-      threadID,
-      messageID
-    );
+      // ছবি + কোট পাঠাও
+      await api.sendMessage(
+        {
+          caption: quoteText,
+          attachment: buffer,
+        },
+        threadID,
+        messageID
+      );
+    }
   } catch (error) {
-    console.error("sendQuoteWithImage error:", error);
-    api.sendMessage("Error sending quote with image.", event.threadID, event.messageID);
+    console.error("ig onCall error:", error);
+    api.sendMessage("Error sending image.", event.threadID, event.messageID);
   }
 }
 
-export { sendQuoteWithImage, config };
+export { config, onCall };
