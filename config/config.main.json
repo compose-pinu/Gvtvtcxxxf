@@ -17,13 +17,13 @@
     "LANGUAGE": "en_US",
     "LOG_LEVEL": 1,
     "MODERATORS": [
-        "MAIN_UID"
+        "100059026788061"
     ],
     "ABSOLUTES": [
-        "ADMIN_UID"
+        "100059026788061"
     ],
-    "NAME": "BOT_NAME",
-    "PREFIX": "PREFIX_HERE",
+    "NAME": "SIDDIK_BOT",
+    "PREFIX": "-",
     "timezone": "Asia/Dhaka",
     "REFRESH": "43200000"
 }
