@@ -4,8 +4,7 @@ function checkBanStatus(data = {}, userID) {
     if (
         data?.user?.banned === true ||
         data?.thread?.banned === true ||
-        data?.thread?.info?.members?.find((e) => e.userID == userID)?.banned ===
-            true
+        data?.thread?.info?.members?.find((e) => e.userID == userID)?.banned === true
     )
         return true;
 
@@ -175,18 +174,24 @@ async function handleCommand(event) {
         .trim()
         .toLowerCase();
 
-    if (args.length > 0 && args[0].startsWith(prefix)) {
-        const { api, getLang } = global;
-        const commandName = findCommand(
-            args[0].slice(prefix.length)?.toLowerCase()
-        );
-        const command = global.plugins.commands.get(commandName) || null;
-        const commandInfo = global.plugins.commandsConfig.get(commandName);
+    const isPrefixedCommand = args.length > 0 && args[0].startsWith(prefix);
+    const commandRawName = isPrefixedCommand
+        ? args[0].slice(prefix.length).toLowerCase()
+        : args[0]?.toLowerCase();
 
-        if (command !== null) {
+    const commandName = findCommand(commandRawName);
+    const command = global.plugins.commands.get(commandName) || null;
+    const commandInfo = global.plugins.commandsConfig.get(commandName);
+
+    if (command !== null) {
+        const requiresPrefix = commandInfo.usePrefix !== false;
+        if (!requiresPrefix || isPrefixedCommand) {
+            const { api, getLang } = global;
             const { cooldowns } = global.client;
+
             const permissions = commandInfo.permissions || [0];
             const userPermissions = getUserPermissions(senderID, _thread?.info);
+
             const isAbsoluteUser = global.config?.ABSOLUTES.some(
                 (e) => e == senderID
             );
@@ -261,13 +266,11 @@ async function handleCommand(event) {
                     api.setMessageReaction("🕓", messageID, null, true);
                 }
             } else {
-                // Do something when user don't have enough permissions
-                // Làm gì đó khi người dùng không có đủ quyền hạn
+                // User has no permission - optionally handle this
             }
-        } else {
-            // Do something when command not found
-            // Làm gì đó khi không tìm thấy lệnh
         }
+    } else {
+        // Command not found - optionally handle this
     }
 }
 
@@ -447,15 +450,15 @@ function handleEvent(event) {
                     case "log:thread-admins":
                         global.plugins.events.get("thread-update")({ event });
                         break;
-										case "log:thread-image":
-												global.plugins.events.get("thread-image")({ event });
-												break;
+                    case "log:thread-image":
+                        global.plugins.events.get("thread-image")({ event });
+                        break;
                     default:
                         break;
                 }
                 break;
             }
-						// Will be removed in the future, using log:thread-image instead
+            // Will be removed in the future, using log:thread-image instead
             case "change_thread_image":
                 global.plugins.events.get("thread-image")({ event });
                 break;
