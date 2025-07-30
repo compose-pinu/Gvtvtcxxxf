@@ -6,17 +6,17 @@ const config = {
   cooldown: 0,
   description: "Fetch profile picture of a user",
   credits: "SK-SIDDIK-KHAN",
-  usePrefix: false  // true হলে prefix লাগবে, false হলে natural detect করবে
+  usePrefix: false
 };
 
 async function onCall({ message, args, event = {} }) {
-  // ইউজার ডাটা কন্ট্রোলার থেকে getAvatarUrl ফাংশন নাও
-  const usersData = global.controllers?.Users || null;  // তোমার controller name অনুযায়ী হতে পারে Users বা usersData
+  const usersData = global.controllers?.Users;
   if (!usersData || typeof usersData.getAvatarUrl !== "function") {
     return message.reply("❌ Error: usersData system not found.");
   }
 
   let uid = event.senderID;
+  console.log("Fetching avatar for UID:", uid);
 
   try {
     if (event.messageReply?.senderID) {
@@ -30,6 +30,8 @@ async function onCall({ message, args, event = {} }) {
     } else if (args[0]) {
       uid = args[0];
     }
+
+    console.log("Final UID to fetch avatar:", uid);
 
     const avt = usersData.getAvatarUrl(uid);
     if (!avt) throw new Error("Could not get avatar URL.");
