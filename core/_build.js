@@ -15,7 +15,7 @@ import {
   updateJSON,
   updateMONGO,
   getUsersController,
-  getThreadsController,
+  getThreadsController
 } from "./handlers/database.js";
 import crypto from "crypto";
 
@@ -31,25 +31,40 @@ process.on("uncaughtException", (err, origin) => {
   logger.error("Uncaught Exception: " + err + ": " + origin);
 });
 
-["SIGINT", "SIGTERM", "SIGHUP"].forEach((signal) => {
-  process.on(signal, () => {
-    logger.system(getLang("build.start.exit"));
-    global.shutdown();
-  });
+process.on("SIGINT", () => {
+  logger.system(global.getLang("build.start.exit"));
+  global.shutdown();
+});
+
+process.on("SIGTERM", () => {
+  logger.system(global.getLang("build.start.exit"));
+  global.shutdown();
+});
+
+process.on("SIGHUP", () => {
+  logger.system(global.getLang("build.start.exit"));
+  global.shutdown();
 });
 
 async function start() {
   try {
     await _init_var();
-    logger.system(getLang("build.start.varLoaded"));
+    logger.system(global.getLang("build.start.varLoaded"));
 
     await initDatabase();
+
+    // এখানে controller গুলো গ্লোবালে সেট করো
+    global.controllers = {
+      Users: getUsersController(),
+      Threads: getThreadsController()
+    };
+
+    // Debug log
+    console.log("Users controller loaded:", global.controllers.Users);
+    console.log("getAvatarUrl is function:", typeof global.controllers.Users.getAvatarUrl);
+
     global.updateJSON = updateJSON;
     global.updateMONGO = updateMONGO;
-
-    const _Threads = getThreadsController();
-    const _Users = getUsersController();
-    global.controllers = { Threads: _Threads, Users: _Users };
 
     const serverAdminPassword = getRandomPassword(8);
     startServer(serverAdminPassword);
@@ -66,13 +81,13 @@ global.listenerID = null;
 
 function booting(logger) {
   return new Promise((resolve, reject) => {
-    logger.custom(getLang("build.booting.logging"), "LOGIN");
+    logger.custom(global.getLang("build.booting.logging"), "LOGIN");
 
     loginState()
       .then(async (api) => {
         global.api = api;
         global.botID = api.getCurrentUserID();
-        logger.custom(getLang("build.booting.logged", { botID: global.botID }), "LOGIN");
+        logger.custom(global.getLang("build.booting.logged", { botID: global.botID }), "LOGIN");
 
         refreshState();
         if (global.config.REFRESH) autoReloadApplication();
@@ -80,12 +95,15 @@ function booting(logger) {
         const newListenerID = generateListenerID();
         global.listenerID = newListenerID;
         global.listenMqtt = api.listenMqtt(await handleListen(newListenerID));
-
         refreshMqtt();
+
         resolve();
       })
       .catch((err) => {
-        if (isGlitch && global.isExists(resolvePath(process.cwd(), ".data", "appstate.json"), "file")) {
+        if (
+          isGlitch &&
+          global.isExists(resolvePath(process.cwd(), ".data", "appstate.json"), "file")
+        ) {
           global.deleteFile(resolvePath(process.cwd(), ".data", "appstate.json"));
           execSync("refresh");
         }
@@ -99,21 +117,25 @@ const _2HOUR = 1000 * 60 * 60 * 2;
 
 function refreshState() {
   global.refreshState = setInterval(() => {
-    logger.custom(getLang("build.refreshState"), "REFRESH");
+    logger.custom(global.getLang("build.refreshState"), "REFRESH");
     const newAppState = global.api.getAppState();
     if (global.config.APPSTATE_PROTECTION === true) {
       if (isGlitch) {
         writeFileSync(resolvePath(process.cwd(), ".data", "appstate.json"), JSON.stringify(newAppState, null, 2), "utf-8");
       } else if (isReplit) {
-        const db = new replitDB();
+        let APPSTATE_SECRET_KEY;
+        let db = new replitDB();
         db.get("APPSTATE_SECRET_KEY")
-          .then((APPSTATE_SECRET_KEY) => {
-            if (APPSTATE_SECRET_KEY) {
-              const encrypted = global.modules.get("aes").encrypt(JSON.stringify(newAppState), APPSTATE_SECRET_KEY);
-              writeFileSync(resolvePath(global.config.APPSTATE_PATH), JSON.stringify(encrypted), "utf8");
+          .then((value) => {
+            if (value !== null) {
+              APPSTATE_SECRET_KEY = value;
+              const encryptedAppState = global.modules.get("aes").encrypt(JSON.stringify(newAppState), APPSTATE_SECRET_KEY);
+              writeFileSync(resolvePath(global.config.APPSTATE_PATH), JSON.stringify(encryptedAppState), "utf8");
             }
           })
-          .catch((err) => console.error(err));
+          .catch((err) => {
+            console.error(err);
+          });
       }
     } else {
       writeFileSync(resolvePath(global.config.APPSTATE_PATH), JSON.stringify(newAppState, null, 2), "utf8");
@@ -123,7 +145,7 @@ function refreshState() {
 
 function refreshMqtt() {
   global.refreshMqtt = setInterval(async () => {
-    logger.custom(getLang("build.refreshMqtt"), "REFRESH");
+    logger.custom(global.getLang("build.refreshMqtt"), "REFRESH");
     const newListenerID = generateListenerID();
     global.listenMqtt.stopListening();
     global.listenerID = newListenerID;
@@ -132,7 +154,7 @@ function refreshMqtt() {
 }
 
 function generateListenerID() {
-  return Date.now() + crypto.randomBytes(4).toString("hex");
+  return Date.now() + crypto.randomBytes(4).toString('hex');
 }
 
 function autoReloadApplication() {
@@ -156,7 +178,7 @@ function loginState() {
   });
 }
 
-function getRandomPassword(length) {
+function getRandomPassword(length = 8) {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
 }
 
