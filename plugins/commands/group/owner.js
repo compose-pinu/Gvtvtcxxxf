@@ -1,55 +1,75 @@
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
+import axios from "axios";
+import fs from "fs";
+import path from "path";
 
 export default {
   config: {
-    name: "owner",
-    aliases: [],
-    version: "1.0",
+    name: "ownerinfo",
     author: "Tokodori",
     role: 0,
-    shortDescription: "Show owner info",
-    longDescription: "",
-    category: "group",
+    shortDescription: "Show owner info with video",
+    longDescription: "Display information about the bot owner with a video attachment",
+    category: "admin",
     guide: "{pn}"
   },
 
-  onCall: async function ({ message, event }) {
+  async onCall({ api, event }) {
     try {
-      const info = `
-╭[ . ]•〆 SAIF 〆 ] ─⦿
-╭────────────◊
-├‣ 𝐁𝐨𝐭 & 𝐎𝐰𝐧𝐞𝐫 𝐈𝐧𝐟𝐨𝐫𝐦𝐚𝐭𝐢𝐨𝐧 
-├‣ 𝐍𝐚𝐦𝐞: SAIFUL ISLAM
-├‣ 𝐆𝐞𝐧𝐝𝐞𝐫: Male
-├‣ 𝐀𝐠𝐞: 20+
-├‣ 𝐍𝐢𝐜𝐤: SIFU
-├‣ 𝐂𝐡𝐨𝐢𝐜𝐞: 
-├‣ 𝐇𝐞𝐢𝐠𝐡𝐭: 6.1
-╰────────────◊ 
-      `;
+      const ownerInfo = {
+        name: "SAIFUL ISLAM",
+        gender: "Male",
+        age: "20+",
+        height: "6.1",
+        choice: "Coding & Gaming",
+        nick: "SIFU"
+      };
 
-      const videoUrl = 'https://files.catbox.moe/a86iqb.mp4';
-      const tmpPath = path.join(process.cwd(), 'tmp');
+      const videoUrl = "https://files.catbox.moe/a86iqb.mp4";
+      const tmpFolderPath = path.join(process.cwd(), "tmp");
 
-      // tmp ফোল্ডার না থাকলে বানাও
-      if (!fs.existsSync(tmpPath)) {
-        fs.mkdirSync(tmpPath);
+      if (!fs.existsSync(tmpFolderPath)) {
+        fs.mkdirSync(tmpFolderPath);
       }
 
-      const filePath = path.join(tmpPath, 'owner_video.mp4');
-      const res = await axios.get(videoUrl, { responseType: 'arraybuffer' });
-      fs.writeFileSync(filePath, res.data);
-
-      await message.send({
-        body: info,
-        attachment: fs.createReadStream(filePath)
+      // ভিডিও ডাউনলোড
+      const videoResponse = await axios.get(videoUrl, {
+        responseType: "arraybuffer"
       });
+      const videoPath = path.join(tmpFolderPath, "owner_video.mp4");
+      fs.writeFileSync(videoPath, Buffer.from(videoResponse.data, "binary"));
 
-    } catch (err) {
-      console.error("❌ Error in owner command:", err);
-      return message.send("⚠️ Owner info পাঠাতে সমস্যা হয়েছে।");
+      // মেসেজ তৈরী
+      const message = `
+╭─────────────[ Owner Info ]─────────────╮
+├ 𝗡𝗮𝗺𝗲: ${ownerInfo.name}
+├ 𝗚𝗲𝗻𝗱𝗲𝗿: ${ownerInfo.gender}
+├ 𝗔𝗴𝗲: ${ownerInfo.age}
+├ 𝗡𝗶𝗰𝗸: ${ownerInfo.nick}
+├ 𝗖𝗵𝗼𝗶𝗰𝗲: ${ownerInfo.choice}
+├ 𝗛𝗲𝗶𝗴𝗵𝘁: ${ownerInfo.height}
+╰───────────────────────────────────────╯
+`;
+
+      // ভিডিও সহ মেসেজ পাঠাও
+      await api.sendMessage(
+        {
+          body: message,
+          attachment: fs.createReadStream(videoPath)
+        },
+        event.threadID,
+        event.messageID
+      );
+
+      // রিয়েকশন (ঐচ্ছিক)
+      if (event.body?.toLowerCase().includes("ownerinfo")) {
+        api.setMessageReaction("🖤", event.messageID, () => {}, true);
+      }
+    } catch (error) {
+      console.error("❌ Error in ownerinfo command:", error);
+      await api.sendMessage(
+        "⚠️ Sorry, something went wrong while processing your request.",
+        event.threadID
+      );
     }
   }
 };
