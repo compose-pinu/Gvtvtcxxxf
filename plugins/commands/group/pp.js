@@ -6,7 +6,7 @@ const config = {
   usage: "[mention | reply | uid | facebook link]",
   cooldown: 0,
   description: "profile picture of a user",
-  credits: "SK-SIDDIK-KHAN"
+  credits: "SK-SIDDIK-KHAN",
 };
 
 async function onCall({ message, args, event, usersData }) {
