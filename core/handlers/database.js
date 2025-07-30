@@ -1,8 +1,8 @@
 import { resolve } from "path";
-import { writeFileSync, readFileSync, unlinkSync } from "fs";
+import { writeFileSync, readFileSync, unlinkSync, existsSync, mkdirSync } from "fs";
+import mongoose from "mongoose";
 import Threads from "../var/controllers/thread.js";
 import Users from "../var/controllers/user.js";
-import mongoose from "mongoose";
 import models from "../var/models/index.js";
 
 let _Threads;
@@ -12,6 +12,19 @@ function saveFile(path, data) {
   writeFileSync(path, data, "utf8");
 }
 
+function ensureDir(path) {
+  if (!existsSync(path)) mkdirSync(path, { recursive: true });
+}
+
+function isJSON(str) {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function initDatabase() {
   _Threads = Threads();
   _Users = Users();
@@ -19,97 +32,83 @@ async function initDatabase() {
   const logger = global.modules.get("logger");
   const { DATABASE } = global.config;
   const dataPath = resolve(process.cwd(), "core", "var", "data");
-  const cachePath = global.cachePath;
+  const cachePath = global.cachePath || resolve(process.cwd(), "cache");
 
-  if (!global.isExists(dataPath, "dir")) {
-    global.createDir(dataPath);
-  }
+  ensureDir(dataPath);
+  ensureDir(cachePath);
 
-  if (!global.isExists(cachePath, "dir")) {
-    global.createDir(cachePath);
-  }
+  global.data = global.data || {};
+  global.data.threads = global.data.threads || new Map();
+  global.data.users = global.data.users || new Map();
+  global.data.models = models;
 
   if (DATABASE === "JSON") {
-    let threadPath = resolve(dataPath, "threads.json");
-    let userPath = resolve(dataPath, "users.json");
+    const threadPath = resolve(dataPath, "threads.json");
+    const userPath = resolve(dataPath, "users.json");
 
-    if (!global.isExists(threadPath, "file")) {
+    if (!existsSync(threadPath)) saveFile(threadPath, "[]");
+    if (!existsSync(userPath)) saveFile(userPath, "[]");
+
+    let threadRaw = readFileSync(threadPath, "utf8");
+    let userRaw = readFileSync(userPath, "utf8");
+
+    if (!isJSON(threadRaw)) {
+      logger.warn("threads.json corrupted, resetting...");
       saveFile(threadPath, "[]");
-    } else {
-      let _d = readFileSync(threadPath, "utf8");
-      if (!global.isJSON(_d)) {
-        logger.warn("threads.json corrupted, resetting...");
-        saveFile(threadPath, "[]");
-        _d = "[]";
-      }
-
-      let _parsed = JSON.parse(_d);
-
-      if (!Array.isArray(_parsed)) {
-        logger.warn("threads.json - object based is deprecated, converting...");
-        _parsed = Object.values(_parsed);
-      }
-
-      for (const tData of _parsed) {
-        tData.info.adminIDs = tData.info.adminIDs.map((e) => e?.id || e);
-        global.data.threads.set(tData.threadID, tData);
-      }
+      threadRaw = "[]";
     }
-
-    if (!global.isExists(userPath, "file")) {
+    if (!isJSON(userRaw)) {
+      logger.warn("users.json corrupted, resetting...");
       saveFile(userPath, "[]");
-    } else {
-      let _d = readFileSync(userPath, "utf8");
-      if (!global.isJSON(_d)) {
-        logger.warn("users.json corrupted, resetting...");
-        saveFile(userPath, "[]");
-        _d = "[]";
-      }
-
-      let _parsed = JSON.parse(_d);
-
-      if (!Array.isArray(_parsed)) {
-        logger.warn("users.json - object based is deprecated, converting...");
-        _parsed = Object.values(_parsed);
-      }
-
-      for (const uData of _parsed) {
-        global.data.users.set(uData.userID, uData);
-      }
+      userRaw = "[]";
     }
+
+    let threadsArray = JSON.parse(threadRaw);
+    let usersArray = JSON.parse(userRaw);
+
+    if (!Array.isArray(threadsArray)) threadsArray = Object.values(threadsArray);
+    if (!Array.isArray(usersArray)) usersArray = Object.values(usersArray);
+
+    for (const tData of threadsArray) {
+      if (tData.info?.adminIDs) {
+        tData.info.adminIDs = tData.info.adminIDs.map((e) => e?.id || e);
+      }
+      global.data.threads.set(tData.threadID, tData);
+    }
+    for (const uData of usersArray) {
+      global.data.users.set(uData.userID, uData);
+    }
+
+    logger.custom(`Loaded ${global.data.threads.size} threads from JSON`, "DATABASE");
+    logger.custom(`Loaded ${global.data.users.size} users from JSON`, "DATABASE");
+
   } else if (DATABASE === "MONGO") {
-    const { MONGO_URL } = process.env;
-    if (!MONGO_URL)
-      throw new Error(global.getLang("database.mongo_url_not_found"));
+    const MONGO_URL = process.env.MONGO_URL;
+    if (!MONGO_URL) throw new Error("MONGO_URL not found in environment variables.");
 
     mongoose.set("strictQuery", false);
-    let mongooseConnection = async () => {
-      await mongoose.connect(MONGO_URL);
-      return mongoose.connection;
-    };
 
-    let connection = await mongooseConnection();
+    await mongoose.connect(MONGO_URL);
 
-    global.mongo = connection;
-    global.data.models = models;
+    global.mongo = mongoose.connection;
 
+    // Load from MongoDB collection
     const threads = await models.Threads.find({});
     const users = await models.Users.find({});
 
     for (const thread of threads) {
-      thread.info.adminIDs = thread.info.adminIDs.map((e) => e?.id || e);
+      if (thread.info?.adminIDs) {
+        thread.info.adminIDs = thread.info.adminIDs.map((e) => e?.id || e);
+      }
       global.data.threads.set(thread.threadID, thread);
     }
-
     for (const user of users) {
       global.data.users.set(user.userID, user);
     }
-  }
 
-  logger.custom(
-    global.getLang(`database.init`, { database: DATABASE }),
-    "DATABASE"
-  );
+    logger.custom(`Loaded ${global.data.threads.size} threads from MongoDB`, "DATABASE");
+    logger.custom(`Loaded ${global.data.users.size} users from MongoDB`, "DATABASE");
+  }
 }
 
 function updateJSON() {
@@ -124,65 +123,49 @@ function updateJSON() {
   const threads_array = Array.from(threads.values());
   const users_array = Array.from(users.values());
 
-  saveFile(
-    resolve(process.cwd(), "core", "var", "data", "threads.bak.json"),
-    JSON.stringify(threads_array)
-  );
-  saveFile(
-    resolve(process.cwd(), "core", "var", "data", "threads.json"),
-    formatData(threads_array)
-  );
-  unlinkSync(resolve(process.cwd(), "core", "var", "data", "threads.bak.json"));
+  const dataPath = resolve(process.cwd(), "core", "var", "data");
 
-  saveFile(
-    resolve(process.cwd(), "core", "var", "data", "users.bak.json"),
-    JSON.stringify(users_array)
-  );
-  saveFile(
-    resolve(process.cwd(), "core", "var", "data", "users.json"),
-    formatData(users_array)
-  );
-  unlinkSync(resolve(process.cwd(), "core", "var", "data", "users.bak.json"));
+  // Backup and save threads
+  saveFile(resolve(dataPath, "threads.bak.json"), JSON.stringify(threads_array));
+  saveFile(resolve(dataPath, "threads.json"), formatData(threads_array));
+  unlinkSync(resolve(dataPath, "threads.bak.json"));
+
+  // Backup and save users
+  saveFile(resolve(dataPath, "users.bak.json"), JSON.stringify(users_array));
+  saveFile(resolve(dataPath, "users.json"), formatData(users_array));
+  unlinkSync(resolve(dataPath, "users.bak.json"));
 }
 
 async function updateMONGO() {
-  const { threads, users } = global.data;
-  const { models } = global.data;
-  try {
-    for (const [key, value] of threads.entries()) {
-      await models.Threads.findOneAndUpdate({ threadID: key }, value, {
-        upsert: true,
-      });
-    }
+  const { threads, users, models } = global.data;
 
-    for (const [key, value] of users.entries()) {
-      await models.Users.findOneAndUpdate({ userID: key }, value, {
-        upsert: true,
-      });
+  try {
+    for (const [threadID, threadData] of threads.entries()) {
+      await models.Threads.findOneAndUpdate({ threadID }, threadData, { upsert: true });
     }
-  } catch (e) {
-    throw new Error(e);
+    for (const [userID, userData] of users.entries()) {
+      await models.Users.findOneAndUpdate({ userID }, userData, { upsert: true });
+    }
+  } catch (err) {
+    throw err;
   }
 }
 
 async function handleDatabase(event) {
   const logger = global.modules.get("logger");
-  const { senderID, userID, threadID } = event;
-
+  const { senderID, userID, threadID, isGroup } = event;
   const targetID = userID || senderID;
+
   try {
-    if (event.isGroup === true && !global.data.threads.has(threadID)) {
+    if (isGroup === true && !global.data.threads.has(threadID)) {
       await _Threads.get(threadID);
     }
     if (!global.data.users.has(targetID)) {
       await _Users.get(targetID);
     }
   } catch (e) {
+    logger.custom(global.getLang("database.error", { error: String(e.message || e) }), "DATABASE");
     console.error(e);
-    logger.custom(
-      global.getLang(`database.error`, { error: String(e.message || e) }),
-      "DATABASE"
-    );
   }
 }
 
@@ -200,5 +183,5 @@ export {
   updateMONGO,
   handleDatabase,
   getUsersController,
-  getThreadsController
+  getThreadsController,
 };
