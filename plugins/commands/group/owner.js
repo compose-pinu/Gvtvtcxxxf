@@ -1,3 +1,7 @@
+import axios from "axios";
+import fs from "fs";
+import path from "path";
+
 export default {
   config: {
     name: "ownerinfo",
@@ -9,20 +13,20 @@ export default {
     guide: "{pn}"
   },
 
-  onCall: async function (context) {
-    const { message, args, event, threads, users, api } = context;
-
+  onCall: async function ({ api, event }) {
     try {
       const now = new Date();
       const time = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
 
-      const img = `https://graph.facebook.com/100059026788061/picture?height=720&width=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+      const imageUrl = `https://graph.facebook.com/100059026788061/picture?height=720&width=720&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 
+      // Make temp dir
       const tmpPath = path.join(process.cwd(), "tmp");
       if (!fs.existsSync(tmpPath)) fs.mkdirSync(tmpPath);
 
+      // Download image
       const imagePath = path.join(tmpPath, "admin_photo.jpg");
-      const response = await axios.get(img, { responseType: "arraybuffer" });
+      const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
       fs.writeFileSync(imagePath, Buffer.from(response.data, "binary"));
 
       const messageBody = `
@@ -40,14 +44,18 @@ export default {
 ├─☾ 𝚃𝙷𝙰𝙽𝙺𝚂 𝙵𝙾𝚁 𝚄𝚂𝙸𝙽𝙶
 ╰────────────────⊙`;
 
-      return message.reply({
-        body: messageBody,
-        attachment: fs.createReadStream(imagePath)
-      });
+      await api.sendMessage(
+        {
+          body: messageBody,
+          attachment: fs.createReadStream(imagePath)
+        },
+        event.threadID,
+        event.messageID
+      );
 
     } catch (error) {
       console.error("❌ Error in ownerinfo command:", error);
-      return message.reply("⚠️ Something went wrong!");
+      api.sendMessage("⚠️ Error occurred while sending owner info.", event.threadID);
     }
   }
 };
