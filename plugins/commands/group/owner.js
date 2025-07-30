@@ -5,10 +5,10 @@ import path from 'path';
 export default {
   config: {
     name: "owner",
-    author: "Tokodori", // Converted by Goatbot Tokodori
+    author: "Tokodori",
     role: 0,
-    shortDescription: "Show owner information with video",
-    longDescription: "",
+    shortDescription: "Show owner info",
+    longDescription: "Display information about the bot owner",
     category: "admin",
     guide: "{pn}"
   },
@@ -24,19 +24,14 @@ export default {
         nick: 'SIFU'
       };
 
-      const videoUrl = 'https://files.catbox.moe/a86iqb.mp4'; // Direct link to video
+      const videoUrl = 'https://files.catbox.moe/a86iqb.mp4';
 
       const tmpFolderPath = path.join(process.cwd(), 'tmp');
+      if (!fs.existsSync(tmpFolderPath)) fs.mkdirSync(tmpFolderPath);
 
-      // Create tmp folder if it doesn't exist
-      if (!fs.existsSync(tmpFolderPath)) {
-        fs.mkdirSync(tmpFolderPath);
-      }
-
-      const videoResponse = await axios.get(videoUrl, { responseType: 'arraybuffer' });
+      const videoBuffer = await axios.get(videoUrl, { responseType: 'arraybuffer' });
       const videoPath = path.join(tmpFolderPath, 'owner_video.mp4');
-
-      fs.writeFileSync(videoPath, Buffer.from(videoResponse.data, 'binary'));
+      fs.writeFileSync(videoPath, Buffer.from(videoBuffer.data, 'binary'));
 
       const response = ` 
 ╭[ . ]•〆 SAIF 〆 ] ─⦿
@@ -60,9 +55,9 @@ export default {
         api.setMessageReaction('🖤', event.messageID, () => {}, true);
       }
 
-    } catch (error) {
-      console.error('❌ Error in owner command:', error);
-      return api.sendMessage('⚠️ Error occurred while processing the command.', event.threadID);
+    } catch (err) {
+      console.error('❌ Error in owner command:', err);
+      await api.sendMessage('⚠️ Error occurred while processing the command.', event.threadID);
     }
   }
 };
