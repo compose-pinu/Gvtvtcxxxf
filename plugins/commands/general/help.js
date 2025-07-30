@@ -13,7 +13,7 @@ const config = {
 async function onCall({ message, args, userPermissions }) {
   try {
     if (!global.plugins || !global.plugins.commandsConfig) {
-      return message.reply("❌ Commands data not available.");
+      return message.reply("❌ Commands data not available");
     }
 
     const page = args[0] && !isNaN(args[0]) ? Math.max(1, parseInt(args[0])) : 1;
@@ -27,7 +27,7 @@ async function onCall({ message, args, userPermissions }) {
       commands.push(value.name);
     }
 
-    if (commands.length === 0) return message.reply("❌ No commands available for you.");
+    if (commands.length === 0) return message.reply("❌ No commands available for you");
 
     const perPage = 20;
     const totalPages = Math.ceil(commands.length / perPage);
@@ -36,18 +36,17 @@ async function onCall({ message, args, userPermissions }) {
     const start = (page - 1) * perPage;
     const pageCommands = commands.slice(start, start + perPage);
 
-    const msg = `┏━[𝗟𝗶𝘀𝘁 𝗼𝗳 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀]━➣\n` +
-            pageCommands.map((cmd, i) => `┃━➤  ${start + i + 1} •──⋅☾ ${cmd}`).join("\n") + `\n` +
-            `┃━━━━━━━━━━━━━━━➢\n` +
-            `┃━➤ 𝐏𝐀𝐆𝐄 (${page}/${totalPages})\n` +
-            `┃━➤ 𝗧𝗼𝘁𝗮𝗹 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${allCommands.length} \n` +
-            `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
+    const msg = `┏━[𝗖𝗼𝗺𝗺𝗮𝗻𝗱 𝗟𝗶𝘀𝘁]━➣\n` +
+      pageCommands.map((cmd, i) => `┃━➤  ${start + i + 1} •──⋅☾ ${cmd}`).join("\n") + `\n` +
+      `┃━━━━━━━━━━━━━━━➢\n` +
+      `┃ Page: ${page}/${totalPages}\n` +
+      `┃ Total Commands: ${commands.length}\n` +
+      `┗━━[𝗦𝗜𝗗𝗗𝗜𝗞 𝗕𝗢𝗧]━━━➣`;
 
     const tempDir = path.join(process.cwd(), "temp");
     if (!existsSync(tempDir)) mkdirSync(tempDir);
 
     const imgPath = path.join(tempDir, "help.jpg");
-
     const imgUrl = "https://drive.google.com/uc?id=10Mnqa_IqX_XmAuAJZtHGLKNTLqQXeWXW";
 
     if (!existsSync(imgPath)) {
