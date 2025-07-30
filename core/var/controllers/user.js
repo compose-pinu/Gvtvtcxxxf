@@ -268,6 +268,8 @@ export default function () {
         decreaseMoney,
         getExp,
         increaseExp,
-        decreaseExp
+        decreaseExp,
+        getAvatarUrl
+
     };
 }
