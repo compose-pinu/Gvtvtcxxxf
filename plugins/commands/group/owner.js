@@ -4,11 +4,11 @@ import path from "path";
 
 export default {
   config: {
-    name: "ownerinfo",
+    name: "owner",
     author: "Tokodori",
     role: 0,
-    shortDescription: "Show owner info with video",
-    longDescription: "Display information about the bot owner with a video attachment",
+    shortDescription: "Show owner info with photo",
+    longDescription: "Display owner information with a JPEG photo",
     category: "admin",
     guide: "{pn}"
   },
@@ -16,29 +16,27 @@ export default {
   async onCall({ api, event }) {
     try {
       const ownerInfo = {
-        name: "SAIFUL ISLAM",
+        name: "SK SIDDIK",
         gender: "Male",
         age: "20+",
         height: "6.1",
-        choice: "Coding & Gaming",
-        nick: "SIFU"
+        choice: "Russian",
+        nick: "dj"
       };
 
-      const videoUrl = "https://files.catbox.moe/a86iqb.mp4";
-      const tmpFolderPath = path.join(process.cwd(), "tmp");
+      const imageUrl = "https://i.imgur.com/n5xunuE.jpeg"; 
 
+      const tmpFolderPath = path.join(process.cwd(), "tmp");
       if (!fs.existsSync(tmpFolderPath)) {
         fs.mkdirSync(tmpFolderPath);
       }
 
-      // ভিডিও ডাউনলোড
-      const videoResponse = await axios.get(videoUrl, {
+      const imageResponse = await axios.get(imageUrl, {
         responseType: "arraybuffer"
       });
-      const videoPath = path.join(tmpFolderPath, "owner_video.mp4");
-      fs.writeFileSync(videoPath, Buffer.from(videoResponse.data, "binary"));
+      const imagePath = path.join(tmpFolderPath, "owner_photo.jpg");
+      fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, "binary"));
 
-      // মেসেজ তৈরী
       const message = `
 ╭─────────────[ Owner Info ]─────────────╮
 ├ 𝗡𝗮𝗺𝗲: ${ownerInfo.name}
@@ -49,25 +47,22 @@ export default {
 ├ 𝗛𝗲𝗶𝗴𝗵𝘁: ${ownerInfo.height}
 ╰───────────────────────────────────────╯
 `;
-
-      // ভিডিও সহ মেসেজ পাঠাও
       await api.sendMessage(
         {
           body: message,
-          attachment: fs.createReadStream(videoPath)
+          attachment: fs.createReadStream(imagePath)
         },
         event.threadID,
         event.messageID
       );
 
-      // রিয়েকশন (ঐচ্ছিক)
       if (event.body?.toLowerCase().includes("ownerinfo")) {
         api.setMessageReaction("🖤", event.messageID, () => {}, true);
       }
     } catch (error) {
       console.error("❌ Error in ownerinfo command:", error);
       await api.sendMessage(
-        "⚠️ Sorry, something went wrong while processing your request.",
+        "Error",
         event.threadID
       );
     }
