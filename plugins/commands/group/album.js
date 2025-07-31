@@ -31,7 +31,7 @@ const videoLinks = {
   ],
 };
 
-export async function onCall({ message, event }) {
+export async function onCall({ message }) {
   const categories = Object.keys(videoLinks);
   const list = categories
     .map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`)
@@ -42,10 +42,12 @@ export async function onCall({ message, event }) {
   const sent = await message.reply(msg);
 
   sent.addReplyEvent({
-    author: event.senderID,
+    // Use message.senderID here because event is undefined in onCall params
+    author: message.senderID,
     albumCategories: categories,
     callback: async ({ message: replyMsg, data, event }) => {
       try {
+        // Check sender ID from reply event to avoid others interfering
         if (event.senderID !== data.author) return;
 
         const index = parseInt(replyMsg.body?.trim());
