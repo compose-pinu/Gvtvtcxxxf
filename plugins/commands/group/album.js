@@ -32,77 +32,94 @@ const videoLinks = {
 };
 
 export async function onCall({ message }) {
-  const categories = Object.keys(videoLinks);
-  const list = categories
-    .map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`)
-    .join("\n");
+  try {
+    // List all categories for user
+    const categories = Object.keys(videoLinks);
+    const list = categories
+      .map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`)
+      .join("\n");
 
-  const msg = `📁 Choose a video category:\n\n${list}\n\n📥 Reply with a number (1-${categories.length})`;
+    const promptMsg = `📁 Choose a video category:\n\n${list}\n\n📥 Reply with a number (1-${categories.length})`;
 
-  const sent = await message.reply(msg);
+    // Send prompt to user
+    const sent = await message.reply(promptMsg);
 
-  sent.addReplyEvent({
-    // Use message.senderID here because event is undefined in onCall params
-    author: message.senderID,
-    albumCategories: categories,
-    callback: async ({ message: replyMsg, data, event }) => {
-      try {
-        // Check sender ID from reply event to avoid others interfering
-        if (event.senderID !== data.author) return;
+    // Add reply event to capture user's response
+    sent.addReplyEvent({
+      author: message.senderID,
+      albumCategories: categories,
+      callback: async ({ message: replyMsg, data, event }) => {
+        try {
+          // Only process reply from original user
+          if (event.senderID !== data.author) return;
 
-        const index = parseInt(replyMsg.body?.trim());
-        if (isNaN(index) || index < 1 || index > data.albumCategories.length) {
-          return replyMsg.reply("❌ Please enter a valid number from the list.");
-        }
+          const input = replyMsg.body?.trim();
+          if (!input) {
+            return replyMsg.reply("❌ Please reply with a number.");
+          }
 
-        const selectedCategory = data.albumCategories[index - 1];
-        const urls = videoLinks[selectedCategory];
-        const videoURL = urls[Math.floor(Math.random() * urls.length)];
+          const index = parseInt(input);
+          if (isNaN(index) || index < 1 || index > data.albumCategories.length) {
+            return replyMsg.reply("❌ Please enter a valid number from the list.");
+          }
 
-        const cachePath = path.join("cache", "album", selectedCategory);
-        if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath, { recursive: true });
+          const selectedCategory = data.albumCategories[index - 1];
+          const urls = videoLinks[selectedCategory];
+          if (!urls || urls.length === 0) {
+            return replyMsg.reply("❌ No videos found for this category.");
+          }
 
-        const fileName = `video_${Date.now()}.mp4`;
-        const filePath = path.join(cachePath, fileName);
+          // Pick random video URL
+          const videoURL = urls[Math.floor(Math.random() * urls.length)];
 
-        const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
+          // Prepare cache folder
+          const cachePath = path.join("cache", "album", selectedCategory);
+          if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath, { recursive: true });
 
-        // Download video
-        const res = await axios({
-          method: "GET",
-          url: videoURL,
-          responseType: "stream",
-        });
+          const fileName = `video_${Date.now()}.mp4`;
+          const filePath = path.join(cachePath, fileName);
 
-        const writer = fs.createWriteStream(filePath);
-        res.data.pipe(writer);
+          const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
 
-        writer.on("finish", async () => {
+          // Download video as stream
+          const response = await axios({
+            method: "GET",
+            url: videoURL,
+            responseType: "stream",
+          });
+
+          const writer = fs.createWriteStream(filePath);
+          response.data.pipe(writer);
+
+          // Wait for download finish or error
+          await new Promise((resolve, reject) => {
+            writer.on("finish", resolve);
+            writer.on("error", reject);
+          });
+
+          // Remove loading message if possible
           if (loadingMsg.messageID) {
             await replyMsg.unsend(loadingMsg.messageID);
           }
 
+          // Send video file
           await replyMsg.reply({
             body: `🎬 Here's a random ${selectedCategory.toUpperCase()} video:`,
             attachment: fs.createReadStream(filePath),
           });
 
+          // Clean up downloaded file
           fs.unlinkSync(filePath);
-        });
-
-        writer.on("error", async (err) => {
-          console.error("❌ Video write error:", err);
-          if (loadingMsg.messageID) {
-            await replyMsg.unsend(loadingMsg.messageID);
-          }
-          await replyMsg.reply("❌ Failed to save video.");
-        });
-      } catch (err) {
-        console.error("❌ Album reply error:", err);
-        replyMsg.reply("❌ An error occurred while processing your reply.");
-      }
-    },
-  });
+        } catch (err) {
+          console.error("❌ Error in reply callback:", err);
+          replyMsg.reply("❌ An error occurred while processing your reply.");
+        }
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error in onCall:", error);
+    message.reply("❌ An unexpected error occurred.");
+  }
 }
 
 export default {
