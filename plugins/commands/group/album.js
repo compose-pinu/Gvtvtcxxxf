@@ -33,24 +33,19 @@ const videoLinks = {
 
 export async function onCall({ message }) {
   try {
-    // List all categories for user
     const categories = Object.keys(videoLinks);
-    const list = categories
-      .map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`)
-      .join("\n");
-
+    const list = categories.map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`).join("\n");
     const promptMsg = `📁 Choose a video category:\n\n${list}\n\n📥 Reply with a number (1-${categories.length})`;
 
-    // Send prompt to user
     const sent = await message.reply(promptMsg);
 
-    // Add reply event to capture user's response
+    // Add reply event — restrict reply to original sender only
     sent.addReplyEvent({
-      author: message.senderID,
+      author: message.senderID, // <-- only replies from this user will be accepted
       albumCategories: categories,
       callback: async ({ message: replyMsg, data, event }) => {
         try {
-          // Only process reply from original user
+          // Double check reply is from original user
           if (event.senderID !== data.author) return;
 
           const input = replyMsg.body?.trim();
@@ -69,7 +64,6 @@ export async function onCall({ message }) {
             return replyMsg.reply("❌ No videos found for this category.");
           }
 
-          // Pick random video URL
           const videoURL = urls[Math.floor(Math.random() * urls.length)];
 
           // Prepare cache folder
@@ -81,7 +75,7 @@ export async function onCall({ message }) {
 
           const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
 
-          // Download video as stream
+          // Download video
           const response = await axios({
             method: "GET",
             url: videoURL,
@@ -91,7 +85,6 @@ export async function onCall({ message }) {
           const writer = fs.createWriteStream(filePath);
           response.data.pipe(writer);
 
-          // Wait for download finish or error
           await new Promise((resolve, reject) => {
             writer.on("finish", resolve);
             writer.on("error", reject);
@@ -102,13 +95,13 @@ export async function onCall({ message }) {
             await replyMsg.unsend(loadingMsg.messageID);
           }
 
-          // Send video file
+          // Send the video back to user
           await replyMsg.reply({
             body: `🎬 Here's a random ${selectedCategory.toUpperCase()} video:`,
             attachment: fs.createReadStream(filePath),
           });
 
-          // Clean up downloaded file
+          // Clean up the downloaded file
           fs.unlinkSync(filePath);
         } catch (err) {
           console.error("❌ Error in reply callback:", err);
@@ -116,8 +109,8 @@ export async function onCall({ message }) {
         }
       },
     });
-  } catch (error) {
-    console.error("❌ Error in onCall:", error);
+  } catch (err) {
+    console.error("❌ Error in onCall:", err);
     message.reply("❌ An unexpected error occurred.");
   }
 }
