@@ -47,7 +47,7 @@ export async function onCall({ message }) {
       albumCategories: categories,
       callback: async ({ message: replyMsg, data, event }) => {
         try {
-          await replyMsg.reply("✅ Reply callback triggered!");
+          console.log("✅ Reply callback triggered!");
 
           const senderId =
             event?.senderID ||
@@ -65,10 +65,14 @@ export async function onCall({ message }) {
           }
 
           const input = replyMsg.body?.trim();
-          if (!input) return replyMsg.reply("❌ Please reply with a number.");
+          if (!input) {
+            console.log("❌ No reply input");
+            return replyMsg.reply("❌ Please reply with a number.");
+          }
 
           const index = parseInt(input);
           if (isNaN(index) || index < 1 || index > data.albumCategories.length) {
+            console.log("❌ Invalid number");
             return replyMsg.reply("❌ Please enter a valid number from the list.");
           }
 
@@ -76,9 +80,8 @@ export async function onCall({ message }) {
           console.log("Selected category:", selectedCategory);
 
           const urls = videoLinks[selectedCategory];
-          console.log("Video URLs:", urls);
-
           if (!urls || urls.length === 0) {
+            console.log("❌ No videos found for this category.");
             return replyMsg.reply("❌ No videos found for this category.");
           }
 
@@ -88,15 +91,14 @@ export async function onCall({ message }) {
           const cacheDir = path.join("cache", "album", selectedCategory);
           if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
+            console.log("Created cache directory:", cacheDir);
           }
 
           const fileName = `video_${Date.now()}.mp4`;
           const filePath = path.join(cacheDir, fileName);
-          console.log("File path for download:", filePath);
+          console.log("File path:", filePath);
 
-          const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
-          console.log("Sent loading message");
-
+          // ডাউনলোড শুরু
           const response = await axios({
             method: "GET",
             url: videoURL,
@@ -108,29 +110,28 @@ export async function onCall({ message }) {
 
           await new Promise((resolve, reject) => {
             writer.on("finish", () => {
-              console.log("Video download finished");
+              console.log("✅ Video downloaded successfully");
               resolve();
             });
-            writer.on("error", (err) => {
-              console.error("Video download error:", err);
-              reject(err);
+            writer.on("error", (error) => {
+              console.error("❌ Error writing video file:", error);
+              reject(error);
             });
           });
 
-          if (loadingMsg.messageID) {
-            await replyMsg.unsend(loadingMsg.messageID);
-          }
-
+          // ভিডিও পাঠাও
           await replyMsg.reply({
             body: `🎬 Here's your random ${selectedCategory.toUpperCase()} video:`,
             attachment: fs.createReadStream(filePath),
           });
+          console.log("✅ Video sent");
 
+          // ফাইল ডিলিট করো
           fs.unlinkSync(filePath);
-          console.log("Sent video and cleaned up");
+          console.log("✅ Deleted video file");
 
-        } catch (err) {
-          console.error("❌ Error in album reply handler:", err);
+        } catch (error) {
+          console.error("❌ Error in album reply handler:", error);
           replyMsg.reply("❌ An error occurred while processing your reply.");
         }
       },
