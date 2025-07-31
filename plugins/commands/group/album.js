@@ -39,20 +39,21 @@ async function downloadFile(url, filePath) {
 }
 
 async function handleReply({ message, eventData, getLang }) {
-  const { albums, selectedCategory } = eventData;
+  const { albums } = eventData;
   const index = parseInt(message.body) - 1;
 
-  if (isNaN(index) || index < 0 || index >= albums.length)
+  const keys = Object.keys(albums);
+  if (isNaN(index) || index < 0 || index >= keys.length)
     return message.reply(getLang("album.no_album"));
 
-  const category = Object.keys(albums)[index];
+  const category = keys[index];
   const videos = albums[category];
 
   if (!videos || videos.length === 0)
     return message.reply(getLang("album.unsupported"));
 
   const randomVideo = videos[Math.floor(Math.random() * videos.length)];
-  const videoUrl = randomVideo.url;
+  const videoUrl = randomVideo; // ✅ fixed line
   const cachePath = path.join(global.cachePath, `album_video_${Date.now()}.mp4`);
 
   try {
