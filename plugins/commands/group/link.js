@@ -10,7 +10,22 @@ const config = {
   cooldowns: 5
 };
 
-async function onCall({ message, args, api, event = {} }) {
+async function onCall(data = {}) {
+  // Debug log to check if context is passed correctly
+  console.log("🛠️ onCall context data:", data);
+
+  const {
+    api,
+    args = [],
+    event = {}
+  } = data;
+
+  // Fail early if API is not passed
+  if (!api || typeof api.sendMessage !== "function") {
+    console.error("❌ api.sendMessage is not available");
+    return;
+  }
+
   const {
     messageReply = null,
     senderID = null,
@@ -31,15 +46,20 @@ async function onCall({ message, args, api, event = {} }) {
   }
 
   if (!uid) {
-    return api.sendMessage("⚠️ Could not determine the user.", threadID);
+    return api.sendMessage("⚠️ Could not determine user ID.", threadID, messageID);
   }
 
   try {
     const userInfo = await api.getUserInfo(uid);
     const { profileUrl } = userInfo[uid];
 
-    return api.sendMessage(profileUrl, threadID, messageID);
+    if (!profileUrl) {
+      throw new Error("No profileUrl returned.");
+    }
+
+    return api.sendMessage(`🔗 Facebook profile:\n${profileUrl}`, threadID, messageID);
   } catch (err) {
+    console.error("❌ Failed to fetch profile link:", err);
     return api.sendMessage("⚠️ Could not retrieve user profile link.", threadID, messageID);
   }
 }
