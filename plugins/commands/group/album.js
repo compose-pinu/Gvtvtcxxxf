@@ -6,13 +6,13 @@ export const config = {
   name: "album",
   version: "1.0.0",
   credits: "DS NAYEM",
-  description: "Send random video from selected album category",
+  description: "Send a video based on selected album category",
   category: "media",
-  usages: "",
+  usages: "/album",
   cooldowns: 5,
 };
 
-const videoLinks = {
+const categories = {
   girls: [
     "https://i.imgur.com/3EXzdzu.mp4",
     "https://i.imgur.com/kw3Mx4U.mp4",
@@ -47,77 +47,70 @@ async function downloadFile(url, filePath) {
 
 async function handleReply({ message, eventData }) {
   try {
-    const senderId =
-      (message.senderID || message.from || message.userID || null) ??
-      (eventData.author || null);
+    const senderID = message.senderID;
+    if (!eventData || !eventData.categoryList) {
+      return message.reply("❌ Session expired. Try /album again.");
+    }
 
-    if (senderId !== eventData.author) return;
+    if (senderID !== eventData.author) {
+      return message.reply("❌ Only the original user can reply.");
+    }
 
     const input = message.body?.trim();
     if (!input) return message.reply("❌ Please reply with a number.");
 
     const index = parseInt(input);
-    if (
-      isNaN(index) ||
-      index < 1 ||
-      index > eventData.albumCategories.length
-    )
-      return message.reply("❌ Please enter a valid number from the list.");
+    if (isNaN(index) || index < 1 || index > eventData.categoryList.length) {
+      return message.reply("❌ Invalid selection. Try again.");
+    }
 
-    const selectedCategory = eventData.albumCategories[index - 1];
-    const urls = videoLinks[selectedCategory];
-    if (!urls || urls.length === 0)
-      return message.reply("❌ No videos found for this category.");
+    const selected = eventData.categoryList[index - 1];
+    const links = categories[selected];
 
-    const videoURL = urls[Math.floor(Math.random() * urls.length)];
+    if (!links || links.length === 0)
+      return message.reply("❌ No videos found in this category.");
 
-    const cacheDir = path.join("cache", "album", selectedCategory);
+    const videoURL = links[Math.floor(Math.random() * links.length)];
+    const cacheDir = path.join("cache", "album", selected);
     if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
     const fileName = `video_${Date.now()}.mp4`;
     const filePath = path.join(cacheDir, fileName);
 
-    const loadingMsg = await message.reply("⏳ Downloading your video...");
+    const waiting = await message.reply("⏳ Downloading video...");
 
     await downloadFile(videoURL, filePath);
 
-    if (loadingMsg.messageID) await message.unsend(loadingMsg.messageID);
+    if (waiting?.messageID) await message.unsend(waiting.messageID);
 
     await message.reply({
-      body: `🎬 Here's a random ${selectedCategory.toUpperCase()} video:`,
+      body: `🎬 ${selected.toUpperCase()} video:`,
       attachment: fs.createReadStream(filePath),
     });
 
     fs.unlinkSync(filePath);
-  } catch (error) {
-    console.error("❌ Error in album reply handler:", error);
-    message.reply("❌ An error occurred while processing your reply.");
+  } catch (err) {
+    console.error("❌ Error in album reply:", err);
+    message.reply("❌ Failed to process reply.");
   }
 }
 
 export async function onCall({ message }) {
   try {
-    const categories = Object.keys(videoLinks);
-    const list = categories
-      .map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`)
-      .join("\n");
+    const categoryList = Object.keys(categories);
+    const menu = categoryList.map((cat, i) => `${i + 1}. ${cat.toUpperCase()}`).join("\n");
+    const msg = await message.reply(`📁 Choose category:\n\n${menu}\n\n👉 Reply with a number`);
 
-    const prompt = `📁 Choose a video category:\n\n${list}\n\n📥 Reply with a number (1-${
-      categories.length
-    })`;
-
-    const sentMsg = await message.reply(prompt);
-
-    return sentMsg.addReplyEvent({
+    return msg.addReplyEvent({
+      callback: handleReply,
       eventData: {
         author: message.senderID,
-        albumCategories: categories,
+        categoryList,
       },
-      callback: handleReply,
     });
-  } catch (error) {
-    console.error("❌ Error in album command:", error);
-    message.reply("❌ An unexpected error occurred.");
+  } catch (err) {
+    console.error("❌ Error in album command:", err);
+    message.reply("❌ Something went wrong.");
   }
 }
 
