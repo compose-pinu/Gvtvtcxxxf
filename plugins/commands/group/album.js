@@ -69,19 +69,21 @@ export async function onCall({ message }) {
 
           const index = parseInt(input);
           if (isNaN(index) || index < 1 || index > data.albumCategories.length) {
-            return replyMsg.reply(
-              "❌ Please enter a valid number from the list."
-            );
+            return replyMsg.reply("❌ Please enter a valid number from the list.");
           }
 
           const selectedCategory = data.albumCategories[index - 1];
+          console.log("Selected category:", selectedCategory);
+
           const urls = videoLinks[selectedCategory];
+          console.log("Video URLs:", urls);
 
           if (!urls || urls.length === 0) {
             return replyMsg.reply("❌ No videos found for this category.");
           }
 
           const videoURL = urls[Math.floor(Math.random() * urls.length)];
+          console.log("Chosen video URL:", videoURL);
 
           const cacheDir = path.join("cache", "album", selectedCategory);
           if (!fs.existsSync(cacheDir)) {
@@ -90,8 +92,10 @@ export async function onCall({ message }) {
 
           const fileName = `video_${Date.now()}.mp4`;
           const filePath = path.join(cacheDir, fileName);
+          console.log("File path for download:", filePath);
 
           const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
+          console.log("Sent loading message");
 
           const response = await axios({
             method: "GET",
@@ -103,8 +107,14 @@ export async function onCall({ message }) {
           response.data.pipe(writer);
 
           await new Promise((resolve, reject) => {
-            writer.on("finish", resolve);
-            writer.on("error", reject);
+            writer.on("finish", () => {
+              console.log("Video download finished");
+              resolve();
+            });
+            writer.on("error", (err) => {
+              console.error("Video download error:", err);
+              reject(err);
+            });
           });
 
           if (loadingMsg.messageID) {
@@ -117,6 +127,8 @@ export async function onCall({ message }) {
           });
 
           fs.unlinkSync(filePath);
+          console.log("Sent video and cleaned up");
+
         } catch (err) {
           console.error("❌ Error in album reply handler:", err);
           replyMsg.reply("❌ An error occurred while processing your reply.");
