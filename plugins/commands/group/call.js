@@ -11,7 +11,13 @@ export default {
     cooldowns: 5,
   },
 
-  onCall: async function ({ api, event, args }) {
+  onCall: async function (context) {
+    const { api, event, args } = context || {};
+    if (!event || !api) {
+      console.error("Missing event or api in onCall context");
+      return;
+    }
+
     const { threadID, messageID } = event;
     const botID = api.getCurrentUserID();
 
@@ -23,8 +29,8 @@ export default {
 
     try {
       const { participantIDs, approvalMode, adminIDs } = await api.getThreadInfo(threadID);
-      const participants = participantIDs.map(e => parseInt(e));
-      const admins = adminIDs.map(e => parseInt(e.id));
+      const participants = participantIDs.map((e) => parseInt(e));
+      const admins = adminIDs.map((e) => parseInt(e.id));
 
       if (participants.includes(parseInt(targetUserID))) {
         return send(
