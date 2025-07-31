@@ -4,18 +4,25 @@ const config = {
   permission: 0,
   credits: "SK-SIDDIK-KHAN",
   description: "Get Facebook profile link",
-  prefix: false,
   usePrefix: false,
   category: "utility",
   usages: "link [@mention/reply]",
   cooldowns: 5
 };
 
-async function onCall({ message, args, api, event }) {
-  const { messageReply, senderID, threadID, messageID, type, mentions } = event;
+async function onCall({ message, args, api, event = {} }) {
+  const {
+    messageReply = null,
+    senderID = null,
+    threadID = null,
+    messageID = null,
+    type = null,
+    mentions = {}
+  } = event;
+
   let uid;
 
-  if (type === "message_reply") {
+  if (type === "message_reply" && messageReply?.senderID) {
     uid = messageReply.senderID;
   } else if (args.join(" ").includes("@") && Object.keys(mentions).length > 0) {
     uid = Object.keys(mentions)[0];
@@ -23,11 +30,15 @@ async function onCall({ message, args, api, event }) {
     uid = senderID;
   }
 
+  if (!uid) {
+    return api.sendMessage("⚠️ Could not determine the user.", threadID);
+  }
+
   try {
     const userInfo = await api.getUserInfo(uid);
     const { profileUrl } = userInfo[uid];
 
-    return api.sendMessage(`${profileUrl}`, threadID, messageID);
+    return api.sendMessage(profileUrl, threadID, messageID);
   } catch (err) {
     return api.sendMessage("⚠️ Could not retrieve user profile link.", threadID, messageID);
   }
