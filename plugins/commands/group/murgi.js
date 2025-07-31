@@ -5,6 +5,7 @@ export const config = {
   credits: "SK-SIDDIK-KHAN",
   description: "একজনকে @ম্যানশন করে তাকে উপদেশ পাঠান",
   category: "admin",
+  usePrefix: true,
   usages: "please @mention",
   cooldowns: 5,
 };
@@ -25,16 +26,16 @@ export async function onCall({ message, api = global.api, userPermissions }) {
 
     const mentionID = mentionIDs[0];
     const mentionName = mentions[mentionID];
-
     const arraytag = [{ id: mentionID, tag: mentionName }];
 
     function sendText(text, delay = 0) {
-  return new Promise(resolve => setTimeout(() => {
-    api.sendMessage({ body: text, mentions: arraytag }, message.threadID);
-    resolve();
-  }, delay));
-    
-await sendText(`চুদা লো ${mentionName}`,0);
+      return new Promise(resolve => setTimeout(() => {
+        api.sendMessage({ body: text, mentions: arraytag }, message.threadID);
+        resolve();
+      }, delay));
+    }
+
+    await sendText(`চুদা লো ${mentionName}`, 0);
 
 await sendText(`খাংকির পোলা তর মারে চুদি 🥰। ${mentionName}`, 3000);
 
@@ -149,7 +150,6 @@ await sendText(`তর আম্মুর উপ্তা কইরা চুদ
 await sendText(`হিজলা মাগির পোলা বালি দিয়া চুদমু তরে খাঙ্কি মাগী!তর মাকে।  ✋${mentionName}`,31000);
 await sendText(`তর বোন ভোদা ছিল্লা লবণ লাগায় দিমু। ${mentionName}`,36000);
 await sendText(`~ আমার পুত। জা ভাগ🤖", 39000);
-
   } catch (error) {
     console.error("Error", error);
   }
