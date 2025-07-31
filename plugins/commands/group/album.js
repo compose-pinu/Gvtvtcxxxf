@@ -45,34 +45,49 @@ export async function onCall({ message }) {
 
     // Attach reply handler that only accepts replies from the original user
     sentMsg.addReplyEvent({
-      author: message.senderID, // restrict to original user only
+      author: message.senderID, // restrict replies to this user only
       albumCategories: categories,
       callback: async ({ message: replyMsg, data, event }) => {
         try {
-          // Check senderID from event - accept only original user replies
-          const senderId = event.senderID || event.sender?.id || event.userID || null;
-          if (senderId !== data.author) {
-            // Ignore replies from other users
-            return;
+          // Robust sender ID extraction for Xavia Bot
+          const senderId =
+            event?.senderID ||
+            event?.sender?.id ||
+            event?.userID ||
+            event?.senderUserID ||
+            null;
+
+          const replySenderId =
+            replyMsg.senderID || replyMsg.author || null;
+
+          // Decide which ID to use and compare with original author
+          if (senderId === null && replySenderId !== null) {
+            if (replySenderId !== data.author) return;
+          } else {
+            if (senderId !== data.author) return;
           }
 
-          const replyText = replyMsg.body?.trim();
-          if (!replyText) {
-            return replyMsg.reply("❌ Please reply with a number.");
+          const input = replyMsg.body?.trim();
+          if (!input) return replyMsg.reply("❌ Please reply with a number.");
+
+          const index = parseInt(input);
+          if (
+            isNaN(index) ||
+            index < 1 ||
+            index > data.albumCategories.length
+          ) {
+            return replyMsg.reply(
+              "❌ Please enter a valid number from the list."
+            );
           }
 
-          const selectedIndex = parseInt(replyText);
-          if (isNaN(selectedIndex) || selectedIndex < 1 || selectedIndex > data.albumCategories.length) {
-            return replyMsg.reply("❌ Invalid number. Please reply with a valid number from the list.");
-          }
-
-          const selectedCategory = data.albumCategories[selectedIndex - 1];
+          const selectedCategory = data.albumCategories[index - 1];
           const urls = videoLinks[selectedCategory];
+
           if (!urls || urls.length === 0) {
             return replyMsg.reply("❌ No videos found for this category.");
           }
 
-          // Pick random video from selected category
           const videoURL = urls[Math.floor(Math.random() * urls.length)];
 
           // Setup cache directory
@@ -84,7 +99,9 @@ export async function onCall({ message }) {
           const fileName = `video_${Date.now()}.mp4`;
           const filePath = path.join(cacheDir, fileName);
 
-          const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
+          const loadingMsg = await replyMsg.reply(
+            "⏳ Downloading your video..."
+          );
 
           // Download video stream
           const response = await axios({
@@ -102,7 +119,7 @@ export async function onCall({ message }) {
             writer.on("error", reject);
           });
 
-          // Delete loading message
+          // Delete loading message if possible
           if (loadingMsg.messageID) {
             await replyMsg.unsend(loadingMsg.messageID);
           }
@@ -117,7 +134,9 @@ export async function onCall({ message }) {
           fs.unlinkSync(filePath);
         } catch (err) {
           console.error("❌ Error in album reply handler:", err);
-          replyMsg.reply("❌ An error occurred while processing your reply.");
+          replyMsg.reply(
+            "❌ An error occurred while processing your reply."
+          );
         }
       },
     });
