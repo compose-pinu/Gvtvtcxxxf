@@ -1,97 +1,90 @@
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import { tmpdir } from "os";
+import { v4 as uuidv4 } from "uuid";
 
-export const config = {
-  name: "album",
-  version: "1.0.1",
-  credits: "DS NAYEM",
-  description: "Send random video from selected album category",
-  category: "media",
-  usages: "/album",
-  cooldowns: 5,
-};
+export const config = { name: "album", version: "1.0.0" };
 
-export async function onCall({ message, getLang }) {
+export async function onCall({ message, api }) {
   try {
     const res = await axios.get("https://album-api-37yu.onrender.com/albums");
-    const albums = res.data;
+    const data = res.data;
+    const categories = Object.keys(data).filter(
+      key => Array.isArray(data[key]) && data[key].length > 0
+    );
 
-    const keys = Object.keys(albums).filter(key => Array.isArray(albums[key]) && albums[key].length > 0);
-
-    if (keys.length === 0) {
-      return message.reply("❌ No available albums with videos.");
+    if (!categories.length) {
+      return api.sendMessage("❌ কোনো ভিডিও ক্যাটেগরি পাওয়া যায়নি।", message.threadID, message.messageID);
     }
 
-    let listText = "🎵 Select a category:\n\n";
-    keys.forEach((key, index) => {
-      listText += `${index + 1}. ${key}\n`;
-    });
-    listText += "\nReply with the number of the category you want to get a random video from.";
+    const listText = "📂 ক্যাটেগরি নির্বাচন করো:\n\n" +
+      categories.map((c, i) => `${i + 1}. ${c} (${data[c].length} videos)`).join("\n") +
+      "\n\nReply with number.";
 
-    return message.reply(listText, (err, info) => {
+    api.sendMessage(listText, message.threadID, (err, info) => {
       global.replyHandler[info.messageID] = {
-        command: config.name,
         author: message.senderID,
-        albums
+        categories,
+        albumData: data,
+        command: config.name
       };
-    });
+    }, message.messageID);
+
   } catch (err) {
-    console.error("API Error:", err.message);
-    return message.reply("❌ Failed to fetch album list. Try again later.");
+    console.error("API fetch error:", err);
+    api.sendMessage("❌ API থেকে ক্যাটেগরি ফেচ করা যায়নি।", message.threadID, message.messageID);
   }
 }
 
-export async function onReply({ message, eventData }) {
-  const { albums } = eventData;
-  const index = parseInt(message.body) - 1;
-  const categories = Object.keys(albums).filter(key => Array.isArray(albums[key]) && albums[key].length > 0);
-
-  if (isNaN(index) || index < 0 || index >= categories.length) {
-    return message.reply("❌ Invalid category number.");
-  }
-
-  const category = categories[index];
-  const videos = albums[category];
-
-  if (!videos || videos.length === 0) {
-    return message.reply("❌ No videos in this category.");
-  }
-
-  const randomVideo = videos[Math.floor(Math.random() * videos.length)];
-
-  if (!randomVideo || !randomVideo.startsWith("http")) {
-    return message.reply("❌ Invalid video URL received from API.");
-  }
-
-  const cachePath = path.join(global.cachePath, `album_video_${Date.now()}.mp4`);
-
+export async function onReply({ message, api, eventData }) {
   try {
-    await downloadFile(randomVideo, cachePath);
+    const input = (message.body || '').trim();
+    const idx = parseInt(input) - 1;
+    const cats = eventData.categories;
 
-    await message.reply({
-      body: `🎬 Here's a random video from ${category}`,
-      attachment: fs.createReadStream(cachePath)
+    if (isNaN(idx) || idx < 0 || idx >= cats.length) {
+      return api.sendMessage("❌ ভুল নম্বর দিয়েছেন, আবার চেষ্টা করুন।", message.threadID, message.messageID);
+    }
+
+    const cat = cats[idx];
+    const urls = eventData.albumData[cat];
+
+    if (!Array.isArray(urls) || urls.length === 0) {
+      return api.sendMessage("❌ ভিডিও পাওয়া যায়নি এই ক্যাটেগরিতে।", message.threadID, message.messageID);
+    }
+
+    const randomUrl = urls[Math.floor(Math.random() * urls.length)];
+    console.log("🎯 Random URL:", randomUrl);
+
+    if (!randomUrl || typeof randomUrl !== "string" || !randomUrl.startsWith("http")) {
+      return api.sendMessage("❌ Invalid video URL পাওয়া গেছে।", message.threadID, message.messageID);
+    }
+
+    const ext = path.extname(randomUrl).split("?")[0] || ".mp4";
+    const tmpPath = path.join(tmpdir(), uuidv4() + ext);
+
+    const resp = await axios.get(randomUrl, { responseType: 'stream' });
+    const ws = fs.createWriteStream(tmpPath);
+    resp.data.pipe(ws);
+
+    ws.on("finish", () => {
+      api.sendMessage({
+        body: `🎬 Video from ${cat}`,
+        attachment: fs.createReadStream(tmpPath)
+      }, message.threadID, (err, info) => {
+        fs.unlinkSync(tmpPath);
+      }, message.messageID);
     });
+
+    ws.on("error", (err) => {
+      console.error("Write error:", err);
+      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+      api.sendMessage("❌ ভিডিও পাঠানো হয়নি।", message.threadID, message.messageID);
+    });
+
   } catch (err) {
-    console.error("Video download error:", err.message);
-    return message.reply("❌ Failed to download video.");
-  } finally {
-    if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+    console.error("onReply error:", err);
+    api.sendMessage("❌ ভিডিও লোড করতে ব্যর্থ।", message.threadID, message.messageID);
   }
-}
-
-async function downloadFile(url, outputPath) {
-  const response = await axios({
-    method: "GET",
-    url,
-    responseType: "stream"
-  });
-
-  const writer = fs.createWriteStream(outputPath);
-  return new Promise((resolve, reject) => {
-    response.data.pipe(writer);
-    writer.on("finish", resolve);
-    writer.on("error", reject);
-  });
 }
