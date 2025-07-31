@@ -27,13 +27,12 @@ async function onCall({ message }) {
     return reply("⚠️ Could not determine user ID.");
   }
 
-  // Just send the profile link manually
   const profileLink = `https://www.facebook.com/profile.php?id=${uid}`;
 
-  return send(`🔗 Facebook profile link:\n${profileLink}`);
+  return send(`${profileLink}`);
 }
 
 export default {
   config,
   onCall
-};
+}
