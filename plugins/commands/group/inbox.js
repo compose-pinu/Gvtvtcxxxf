@@ -11,19 +11,13 @@ const config = {
   cooldowns: 5
 };
 
-async function onCall(data = {}) {
-  // Try to find api and event info safely
-  const api = data.api || data.message?.api;
-  const event = data.event || data.message || {};
-  const threadID = event.threadID;
-  const senderID = event.senderID;
+async function onCall({ message }) {
+  // Get api from message.api
+  const api = message.api;
+  const { threadID, senderID } = message;
 
   if (!api || typeof api.sendMessage !== "function") {
     console.error("❌ api.sendMessage not found");
-    return;
-  }
-  if (!threadID || !senderID) {
-    console.error("❌ threadID or senderID missing");
     return;
   }
 
