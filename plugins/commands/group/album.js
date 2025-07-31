@@ -1,5 +1,3 @@
-import axios from "axios";
-
 export const config = {
   name: "album",
   version: "1.0.0",
@@ -25,7 +23,7 @@ const categories = {
     "https://i.imgur.com/gxEZBV3.mp4",
     "https://i.imgur.com/922SK6n.mp4",
   ],
-  // Add more categories if needed
+  // add more categories if you want
 };
 
 export async function onCall({ message, args, api }) {
@@ -81,32 +79,25 @@ export async function onCall({ message, args, api }) {
         const links = categories[categoryName];
         const randomVideo = links[Math.floor(Math.random() * links.length)];
 
-        await message.reply("⏳ Downloading video...");
         try {
-          const res = await axios.get(randomVideo, {
-            responseType: "stream",
-            timeout: 10000,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            },
-          });
+          // Safe api fallback
+          const sendApi = api || message.api || global.api;
+          if (!sendApi || typeof sendApi.sendMessage !== "function") {
+            return message.reply("❌ Bot API is not available.");
+          }
 
-          await api.sendMessage(
+          await sendApi.sendMessage(
             {
               body: `🎬 Here's your video from '${categoryName}' category`,
-              attachment: res.data,
+              attachment: randomVideo,
             },
             message.threadID,
             null,
             message.messageID
           );
         } catch (err) {
-          console.error("Video fetch failed:", err.message || err);
-          if (err.response) {
-            console.error("Status:", err.response.status);
-            console.error("Headers:", err.response.headers);
-          }
-          return message.reply("❌ Failed to fetch video. Try again.");
+          console.error("Telegram sendMessage error:", err);
+          return message.reply("❌ Failed to send video. Try again.");
         }
       },
     });
