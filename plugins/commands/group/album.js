@@ -1,44 +1,55 @@
-import fetch from "node-fetch"; // যদি Node.js < 18 হয়, আর না হলে বাদ দিতে পারো
-
-const config = {
+export const config = {
   name: "album",
   aliases: ["albm"],
-  description: "Get album list from API",
+  description: "Get album list from the public API",
   usage: "[no args]",
   cooldown: 3,
   permissions: [0, 1, 2],
   credits: "XaviaTeam"
 };
 
-const langData = {
-  en: {
-    fetch_error: "❌ Failed to fetch albums from API.",
-    error: "❌ Error: {error}",
+export const langData = {
+  "en_US": {
+    fetch_error: "❌ Failed to fetch album data from the API.",
+    error: "❌ An error occurred: {error}",
     album_list: "🎵 Album Categories:\n\n"
+  },
+  "bn_BD": {
+    fetch_error: "❌ API থেকে অ্যালবাম লোড করতে ব্যর্থ।",
+    error: "❌ একটি ত্রুটি ঘটেছে: {error}",
+    album_list: "🎵 অ্যালবাম ক্যাটাগরি:\n\n"
   }
 };
 
-async function onCall({ message, api, getLang }) {
+export async function onCall({ message, api, getLang }) {
+  const lang = getLang();
+
   try {
-    const res = await fetch("https://album-api-37yu.onrender.com/albums");
-    if (!res.ok) {
-      return api.sendMessage(getLang("fetch_error"), message.threadID, message.messageID);
+    if (!api || !api.sendMessage) {
+      console.error("❌ api.sendMessage is not available");
+      return;
     }
+
+    const res = await fetch("https://album-api-37yu.onrender.com/albums");
+
+    if (!res.ok) {
+      return api.sendMessage(lang.fetch_error, message.threadID, message.messageID);
+    }
+
     const albums = await res.json();
 
-    let reply = getLang("album_list");
+    let reply = lang.album_list;
     for (const [category, videos] of Object.entries(albums)) {
       reply += `📂 ${category} - ${videos.length} videos\n`;
     }
 
     api.sendMessage(reply, message.threadID, message.messageID);
   } catch (err) {
-    api.sendMessage(getLang("error").replace("{error}", err.message), message.threadID, message.messageID);
+    console.error("Fetch error:", err);
+    api.sendMessage(
+      lang.error.replace("{error}", err.message),
+      message.threadID,
+      message.messageID
+    );
   }
 }
-
-export default {
-  config,
-  langData,
-  onCall
-};
