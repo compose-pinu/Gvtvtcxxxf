@@ -1,6 +1,7 @@
 const config = {
     name: "uptime",
     aliases: ["upt"],
+    usePrefix: false,
     credits: "XaviaTeam"
 }
 
