@@ -2,9 +2,9 @@ import axios from "axios";
 
 const config = {
   name: "fbcover",
-  description: "Generate a Facebook cover",
+  description: "Generate a Facebook cover image with custom details",
   usage: "name - subname - phone - address - email - color",
-  cooldown: 2,
+  cooldown: 0,
   permissions: [0],
   usePrefix: true,
   credits: "SK-SIDDIK-KHAN"
@@ -33,13 +33,11 @@ async function onCall({ message, args, api }) {
     }
 
     setTimeout(() => {
-      const infoText = `✿━━━━━━━━━━━━━━━━━━✿\n🔵 𝗙𝗜𝗥𝗦𝗧 𝗡𝗔𝗠𝗘: ${name}\n⚫ 𝗦𝗘𝗖𝗢𝗡𝗗 𝗡𝗔𝗠𝗘: ${subname}\n⚪ 𝗔𝗗𝗗𝗥𝗘𝗦𝗦: ${address}\n📫 𝗠𝗔𝗜𝗟: ${email}\n☎️ 𝗣𝗛𝗢𝗡𝗘 𝗡𝗢: ${phone}\n🎇 𝗖𝗢𝗟𝗢𝗥: ${color}\n✿━━━━━━━━━━━━━━━━━━✿`;
-
       message.reply({
-        body: infoText,
+        body: "✅ Here's Your Facebook Cover",
         attachment: response.data
       });
-    }, 1000);
+    }, 1000); 
 
   } catch (err) {
     console.error(err);
