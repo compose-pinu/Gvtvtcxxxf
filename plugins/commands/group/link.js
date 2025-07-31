@@ -1,5 +1,3 @@
-const moment = require('moment-timezone');
-
 const config = {
   name: "link",
   version: "1.0.0",
@@ -7,7 +5,8 @@ const config = {
   credits: "SK-SIDDIK-KHAN",
   description: "Get Facebook profile link",
   prefix: false,
-  usePrefix: false, 
+  usePrefix: false,
+  category: "utility",
   usages: "link [@mention/reply]",
   cooldowns: 5
 };
