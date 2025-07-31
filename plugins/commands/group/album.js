@@ -42,63 +42,46 @@ export async function onCall({ message }) {
 
     const sentMsg = await message.reply(prompt);
 
+    // Reply event attach করলাম - শুধুমাত্র যিনি কমান্ড দিলেন তার রিপ্লাই পাবে
     sentMsg.addReplyEvent({
       author: message.senderID,
       albumCategories: categories,
       callback: async ({ message: replyMsg, data, event }) => {
         try {
-          console.log("✅ Reply callback triggered!");
-
+          // শুধুমাত্র কমান্ড করা ইউজারের রিপ্লাই এ কাজ করবে
           const senderId =
-            event?.senderID ||
-            event?.sender?.id ||
-            event?.userID ||
-            event?.senderUserID ||
-            null;
-
-          const replySenderId = replyMsg.senderID || replyMsg.author || null;
-
-          if (senderId === null && replySenderId !== null) {
-            if (replySenderId !== data.author) return;
-          } else {
-            if (senderId !== data.author) return;
-          }
+            event?.senderID || event?.sender?.id || event?.userID || null;
+          if (senderId !== data.author) return;
 
           const input = replyMsg.body?.trim();
-          if (!input) {
-            console.log("❌ No reply input");
-            return replyMsg.reply("❌ Please reply with a number.");
-          }
+          if (!input) return replyMsg.reply("❌ Please reply with a number.");
 
           const index = parseInt(input);
           if (isNaN(index) || index < 1 || index > data.albumCategories.length) {
-            console.log("❌ Invalid number");
             return replyMsg.reply("❌ Please enter a valid number from the list.");
           }
 
           const selectedCategory = data.albumCategories[index - 1];
-          console.log("Selected category:", selectedCategory);
-
           const urls = videoLinks[selectedCategory];
           if (!urls || urls.length === 0) {
-            console.log("❌ No videos found for this category.");
             return replyMsg.reply("❌ No videos found for this category.");
           }
 
           const videoURL = urls[Math.floor(Math.random() * urls.length)];
-          console.log("Chosen video URL:", videoURL);
 
+          // Cache folder তৈরি করবো যদি না থাকে
           const cacheDir = path.join("cache", "album", selectedCategory);
           if (!fs.existsSync(cacheDir)) {
             fs.mkdirSync(cacheDir, { recursive: true });
-            console.log("Created cache directory:", cacheDir);
           }
 
           const fileName = `video_${Date.now()}.mp4`;
           const filePath = path.join(cacheDir, fileName);
-          console.log("File path:", filePath);
 
-          // ডাউনলোড শুরু
+          // ভিডিও ডাউনলোডের জন্য loading মেসেজ
+          const loadingMsg = await replyMsg.reply("⏳ Downloading your video...");
+
+          // ভিডিও ডাউনলোডিং শুরু
           const response = await axios({
             method: "GET",
             url: videoURL,
@@ -109,26 +92,23 @@ export async function onCall({ message }) {
           response.data.pipe(writer);
 
           await new Promise((resolve, reject) => {
-            writer.on("finish", () => {
-              console.log("✅ Video downloaded successfully");
-              resolve();
-            });
-            writer.on("error", (error) => {
-              console.error("❌ Error writing video file:", error);
-              reject(error);
-            });
+            writer.on("finish", resolve);
+            writer.on("error", reject);
           });
 
-          // ভিডিও পাঠাও
+          // loading মেসেজ আনসেন্ড করবো
+          if (loadingMsg.messageID) {
+            await replyMsg.unsend(loadingMsg.messageID);
+          }
+
+          // ভিডিও পাঠাচ্ছি
           await replyMsg.reply({
-            body: `🎬 Here's your random ${selectedCategory.toUpperCase()} video:`,
+            body: `🎬 Here's a random ${selectedCategory.toUpperCase()} video:`,
             attachment: fs.createReadStream(filePath),
           });
-          console.log("✅ Video sent");
 
-          // ফাইল ডিলিট করো
+          // ফাইল ডিলিট করবো
           fs.unlinkSync(filePath);
-          console.log("✅ Deleted video file");
 
         } catch (error) {
           console.error("❌ Error in album reply handler:", error);
