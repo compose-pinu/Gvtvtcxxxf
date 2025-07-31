@@ -1,13 +1,17 @@
-const config = {
+export default {
+  config: {
     name: "call",
-    version: "1.1.0",
-    usage: "",
-    cooldown: 3,
-    permissions: [0],
-    credits: "SK-SIDDIK",
+    version: "1.0.0",
+    permission: 0,
+    credits: "SK-SIDDIK-KHAN",
+    usePrefix: true,
+    description: "Admin add any group",
+    category: "calling",
+    usages: "user",
+    cooldowns: 5,
   },
 
-  onCall: async function({ api, event, args }) {
+  onCall: async function ({ api, event, args }) {
     const { threadID, messageID } = event;
     const botID = api.getCurrentUserID();
 
@@ -19,8 +23,8 @@ const config = {
 
     try {
       const { participantIDs, approvalMode, adminIDs } = await api.getThreadInfo(threadID);
-      const participants = participantIDs.map((e) => parseInt(e));
-      const admins = adminIDs.map((e) => parseInt(e.id));
+      const participants = participantIDs.map(e => parseInt(e));
+      const admins = adminIDs.map(e => parseInt(e.id));
 
       if (participants.includes(parseInt(targetUserID))) {
         return send(
@@ -46,5 +50,5 @@ const config = {
       console.error("Error adding user to group:", error);
       return send("Failed to add the user to the group ❎");
     }
-  },
+  }
 };
