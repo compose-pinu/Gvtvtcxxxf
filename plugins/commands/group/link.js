@@ -37,10 +37,19 @@ async function onCall({ message }) {
   }
 
   try {
-    const userInfo = await api.getUserInfo(uid); // from message.api
-    const { profileUrl, name } = userInfo[uid];
+    const userInfo = await api.getUserInfo(uid);
+    console.log("User info fetched:", userInfo);
 
-    if (!profileUrl) throw new Error("No profile URL");
+    if (!userInfo || !userInfo[uid]) {
+      return reply("⚠️ User info not found.");
+    }
+
+    const { profileUrl, name } = userInfo[uid];
+    console.log("Profile URL:", profileUrl);
+
+    if (!profileUrl) {
+      return send(`User profile link not found. Here is the user ID: ${uid}`);
+    }
 
     return send(`🔗 Profile of ${name}:\n${profileUrl}`);
   } catch (err) {
