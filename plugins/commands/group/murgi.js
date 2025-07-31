@@ -1,5 +1,5 @@
 export const config = {
-  name: "idia",
+  name: "murgi",
   version: "1.0.0",
   permissions: [2],
   credits: "SK-SIDDIK-KHAN",
@@ -29,12 +29,12 @@ export async function onCall({ message, api = global.api, userPermissions }) {
     const arraytag = [{ id: mentionID, tag: mentionName }];
 
     function sendText(text, delay = 0) {
-      return new Promise(resolve => setTimeout(() => {
-        api.sendMessage({ body: text, mentions: arraytag }, message.threadID);
-        resolve();
-      }, delay));
-      
-    await sendText(`চুদা লো ${mentionName}`, 3000);
+  return new Promise(resolve => setTimeout(() => {
+    api.sendMessage({ body: text, mentions: arraytag }, message.threadID);
+    resolve();
+  }, delay));
+    
+await sendText(`চুদা লো ${mentionName}`);
 
 await sendText(`খাংকির পোলা তর মারে চুদি 🥰। ${mentionName}`, 3000);
 
@@ -124,7 +124,7 @@ await sendText(`খাঙ্কিরপোলা পোলা কথা শু�
 await sendText(`Welcome শুয়োরের বাচ্চা 🥰${mentionName}`, 174000);
 await sendText(`কুত্তার বাচ্ছা তর কচি বোন এর পম পম😍..${mentionName}`,177000);
 await sendText(`খাঙ্কিরপোলা পোলা কথা শুন তর আম্মু রে চুদি গামছা পেচিয়ে🐰${mentionName}`,180000);
-await sendText(`Hi নয়ন এর জারজ পোলা মাগির পোলা  💔!${mentionName}`,9000);
+await sendText(`Hi সিদ্দিক এর জারজ পোলা মাগির পোলা  💔!${mentionName}`,9000);
 await sendText(`খান্কি মাগির পোলা ${mentionName}`,12000);
 await sendText(`তোর বাপে তোর নানা। 🤬 ${mentionName}`,15000);
 await sendText(`বস্তির ছেলে তোর বইনরে মুসলমানি দিমু${mentionName}`, 17000);
