@@ -1,7 +1,7 @@
 export const config = {
   name: "idia",
   version: "1.0.0",
-  permission: 2,
+  permissions: [2],
   credits: "SK-SIDDIK-KHAN",
   description: "একজনকে @ম্যানশন করে তাকে উপদেশ পাঠান",
   category: "admin",
