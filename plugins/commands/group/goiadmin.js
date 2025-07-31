@@ -8,11 +8,13 @@ export const config = {
 };
 
 export async function onCall({ message, event, api }) {
-  const ownerID = "100004282697847";
+  const ownerID = "100080363541272";
 
   if (event.senderID === ownerID) return;
 
-  const mentionedIDs = Object.keys(event.mentions || {});
+  if (!event.mentions || typeof event.mentions !== 'object') return;
+
+  const mentionedIDs = Object.keys(event.mentions);
   if (mentionedIDs.includes(ownerID)) {
     const messages = [
       "Don't Mention My Owner, Busy Right Now 💞",
