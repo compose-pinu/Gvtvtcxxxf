@@ -198,15 +198,34 @@ async function handleCommand(event) {
             const extra = commandInfo.extra || {};
 
             try {
-              await command({
-                message: event,
-                args: [...args].slice(1),
-                getLang: getLangForCommand,
-                extra,
-                data,
-                userPermissions,
-                prefix,
-              });
+              // Botpack style run
+              if (typeof command.run === "function") {
+                await command.run({
+                  event,
+                  args: [...args].slice(1),
+                  api,
+                  getLang: getLangForCommand,
+                  data,
+                  userPermissions,
+                  prefix,
+                  extra,
+                });
+              }
+              // Xavia style onCall
+              else if (typeof command.onCall === "function") {
+                await command.onCall({
+                  message: event,
+                  args: [...args].slice(1),
+                  api,
+                  getLang: getLangForCommand,
+                  data,
+                  userPermissions,
+                  prefix,
+                  extra,
+                });
+              } else {
+                api.sendMessage(`Command "${commandName}" is not properly configured.`, threadID, messageID);
+              }
             } catch (err) {
               console.error(err);
               api.sendMessage(
