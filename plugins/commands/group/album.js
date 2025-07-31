@@ -1,38 +1,78 @@
 import axios from "axios";
+import fs from "fs";
+import path from "path";
+import { tmpdir } from "os";
+import { v4 as uuidv4 } from "uuid";
 
 export const config = {
-  name: "albums",
+  name: "album",
   version: "1.0.0",
   credits: "DS NAYEM",
-  description: "Show album categories from API",
+  description: "Send random video from selected album category",
   category: "media",
   usePrefix: true,
   cooldown: 5,
 };
 
-export async function onCall({ message, reply, userID }) {
+export async function onCall({ message, reply, args }) {
   try {
+    const categoryNumber = parseInt(args[0], 10);
+    if (isNaN(categoryNumber) || categoryNumber < 1) {
+      return reply("❌ Please provide a valid category number. Example: /album 1");
+    }
+
+    // Fetch all albums
     const res = await axios.get("https://album-api-37yu.onrender.com");
     const data = res.data;
-
-    if (!data || typeof data !== "object") {
-      return reply("❌ Failed to fetch album data.");
-    }
-
     const categories = Object.keys(data);
-    if (categories.length === 0) {
-      return reply("❌ No album categories found.");
+
+    if (categoryNumber > categories.length) {
+      return reply("❌ Invalid category number. Please check /albums.");
     }
 
-    let listText = "📂 Available Album Categories:\n\n";
-    categories.forEach((cat, i) => {
-      listText += `${i + 1}. ${cat}\n`;
-    });
-    listText += "\n👉 Reply with a number using /album command to get a video.";
+    const selectedCategory = categories[categoryNumber - 1];
+    const videos = data[selectedCategory];
 
-    reply(listText);
+    if (!Array.isArray(videos) || videos.length === 0) {
+      return reply("❌ No videos found in this category.");
+    }
+
+    const videoUrl = videos[Math.floor(Math.random() * videos.length)];
+    if (!videoUrl.startsWith("http")) {
+      return reply("❌ Invalid video URL.");
+    }
+
+    // Download video temporarily
+    const ext = path.extname(videoUrl).split("?")[0] || ".mp4";
+    const tempFilePath = path.join(tmpdir(), `${uuidv4()}${ext}`);
+
+    const videoRes = await axios({
+      method: "GET",
+      url: videoUrl,
+      responseType: "stream",
+    });
+
+    const writer = fs.createWriteStream(tempFilePath);
+    videoRes.data.pipe(writer);
+
+    writer.on("finish", () => {
+      message.reply(
+        {
+          body: `🎞️ Category: ${selectedCategory}`,
+          attachment: fs.createReadStream(tempFilePath),
+        },
+        () => {
+          fs.unlinkSync(tempFilePath);
+        }
+      );
+    });
+
+    writer.on("error", () => {
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      return reply("❌ Failed to download the video.");
+    });
   } catch (error) {
-    console.error("Albums command error:", error);
-    reply("❌ Failed to fetch album data. Please try again later.");
+    console.error("Album command error:", error);
+    reply("❌ Failed to fetch or send video. Please try again later.");
   }
 }
