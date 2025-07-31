@@ -2,9 +2,8 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import jimp from "jimp";
-import { downloadFile } from "#utils";
 
-const __root = path.resolve();
+const { downloadFile } = global.utils;
 
 export const config = {
   name: "hug1",
