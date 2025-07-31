@@ -1,55 +1,65 @@
-export const config = {
+import axios from "axios";
+
+const config = {
   name: "album",
   aliases: ["albm"],
-  description: "Get album list from the public API",
+  version: "1.0.0",
+  description: "Get album list and play random video from a category",
   usage: "[no args]",
-  cooldown: 3,
+  cooldown: 5,
   permissions: [0, 1, 2],
-  credits: "XaviaTeam"
+  credits: "DS NAYEM & XaviaTeam"
 };
 
-export const langData = {
+const langData = {
   "en_US": {
-    fetch_error: "❌ Failed to fetch album data from the API.",
-    error: "❌ An error occurred: {error}",
-    album_list: "🎵 Album Categories:\n\n"
-  },
-  "bn_BD": {
-    fetch_error: "❌ API থেকে অ্যালবাম লোড করতে ব্যর্থ।",
-    error: "❌ একটি ত্রুটি ঘটেছে: {error}",
-    album_list: "🎵 অ্যালবাম ক্যাটাগরি:\n\n"
+    "album.list": "🎵 Available albums:\n\n",
+    "album.error": "❌ Error: {error}",
+    "album.fetch_fail": "❌ Failed to fetch album list.",
+    "album.reply_prompt": "💬 Reply with the category name to get a random video from it.",
+    "album.invalid": "❌ Invalid category.",
+    "album.sending": "⏳ Sending random video from {name}..."
   }
 };
 
-export async function onCall({ message, api, getLang }) {
-  const lang = getLang();
-
+async function onCall({ message, getLang }) {
   try {
-    if (!api || !api.sendMessage) {
-      console.error("❌ api.sendMessage is not available");
-      return;
-    }
+    const res = await axios.get("https://album-api-37yu.onrender.com/albums");
+    const albums = res.data;
 
-    const res = await fetch("https://album-api-37yu.onrender.com/albums");
+    const categoryList = Object.keys(albums);
+    if (!categoryList.length) return message.reply(getLang("album.fetch_fail"));
 
-    if (!res.ok) {
-      return api.sendMessage(lang.fetch_error, message.threadID, message.messageID);
-    }
+    const formatted = categoryList.map(cat => `📁 ${cat} (${albums[cat].length} videos)`).join("\n");
+    const msg = await message.reply(getLang("album.list") + formatted + "\n\n" + getLang("album.reply_prompt"));
 
-    const albums = await res.json();
+    return msg.addReplyEvent({
+      callback: async function handleReply({ message: repMsg, eventData }) {
+        const cat = repMsg.body.trim();
+        if (!albums[cat]) return repMsg.reply(getLang("album.invalid"));
 
-    let reply = lang.album_list;
-    for (const [category, videos] of Object.entries(albums)) {
-      reply += `📂 ${category} - ${videos.length} videos\n`;
-    }
+        const randomVid = albums[cat][Math.floor(Math.random() * albums[cat].length)];
+        if (!randomVid?.url) return repMsg.reply(getLang("album.invalid"));
 
-    api.sendMessage(reply, message.threadID, message.messageID);
+        await repMsg.react("⏳");
+        await repMsg.reply(getLang("album.sending").replace("{name}", cat));
+
+        await repMsg.reply({
+          body: `${cat} video 🎬`,
+          attachment: [await global.utils.getStreamFromURL(randomVid.url)]
+        });
+        await repMsg.react("✅");
+      }
+    });
+
   } catch (err) {
-    console.error("Fetch error:", err);
-    api.sendMessage(
-      lang.error.replace("{error}", err.message),
-      message.threadID,
-      message.messageID
-    );
+    console.error(err);
+    return message.reply(getLang("album.error").replace("{error}", err.message));
   }
 }
+
+export default {
+  config,
+  langData,
+  onCall
+};
