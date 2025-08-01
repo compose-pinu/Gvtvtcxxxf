@@ -9,8 +9,12 @@ export default {
     guide: "{pn}"
   },
 
+  onCall() {
+    // required by loader, not used here
+  },
+
   onChat({ api, event }) {
-    const ownerID = "100080363541272";
+    const ownerID = "100004282697847";
 
     if (event.senderID !== ownerID) {
       const mentionedIDs = Object.keys(event.mentions || {});
@@ -29,9 +33,5 @@ export default {
         return api.sendMessage(randomMsg, event.threadID, event.messageID);
       }
     }
-  },
-
-  async onStart() {
-    // Optional startup code here
   }
 };
