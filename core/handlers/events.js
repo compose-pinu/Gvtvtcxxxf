@@ -420,56 +420,6 @@ async function handleMessage(event) {
     }
 }
 
-// ** Add onChat handler **
-async function handleChat(event) {
-    const { threadID, senderID } = event;
-    const { Threads, Users } = global.controllers;
-
-    const _thread = event.isGroup ? (await Threads.get(threadID)) || {} : {};
-    const _user = (await Users.get(senderID)) || {};
-
-    const data = { user: _user, thread: _thread };
-    if (checkBanStatus(data, senderID)) return;
-
-    if (global.plugins.onChat && global.plugins.onChat.size > 0) {
-        for (const [name, callback] of global.plugins.onChat.entries()) {
-            try {
-                let TLang =
-                    _thread?.data?.language || global.config.LANGUAGE || "en_US";
-                const getLangForCommand = (key, objectData) =>
-                    global.getLang(key, objectData, name, TLang);
-
-                const extraEventProperties = getExtraEventProperties(event, {
-                    type: "chat",
-                    commandName: name,
-                });
-                Object.assign(event, extraEventProperties);
-
-                callback({
-                    message: event,
-                    getLang: getLangForCommand,
-                    data,
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
-}
-
-// ** Add onStart handler **
-async function handleStart(event) {
-    if (global.plugins.onStart && global.plugins.onStart.size > 0) {
-        for (const [name, callback] of global.plugins.onStart.entries()) {
-            try {
-                callback({ event });
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    }
-}
-
 function handleUnsend(event) {
     if (event.senderID == event.threadID || global.botID == event.threadID)
         return;
@@ -528,8 +478,6 @@ export default async function () {
         handleReaction,
         handleReply,
         handleMessage,
-        handleChat,
-        handleStart,
         handleUnsend,
         handleEvent,
     };
