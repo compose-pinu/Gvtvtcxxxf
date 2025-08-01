@@ -185,22 +185,12 @@ async function handleCommand(event) {
 
     if (command !== null) {
         const requiresPrefix = commandInfo.usePrefix !== false;
-
-        // 🔥 Permission level 2 required if commandInfo.use === true
-        const userPermissions = getUserPermissions(senderID, _thread?.info);
-        if (commandInfo.use === true && !userPermissions.includes(2)) {
-            return global.api.sendMessage(
-                "You do not have permission to use this command",
-                threadID,
-                messageID
-            );
-        }
-
         if (!requiresPrefix || isPrefixedCommand) {
             const { api, getLang } = global;
             const { cooldowns } = global.client;
 
             const permissions = commandInfo.permissions || [0];
+            const userPermissions = getUserPermissions(senderID, _thread?.info);
 
             const isAbsoluteUser = global.config?.ABSOLUTES.some(
                 (e) => e == senderID
@@ -428,42 +418,54 @@ async function handleMessage(event) {
             console.error(err);
         }
     }
+}
 
-    // নতুন: onChat হ্যান্ডলার
-    for (const [name, callback] of global.plugins.onChat.entries()) {
-        try {
-            let TLang =
-                _thread?.data?.language || global.config.LANGUAGE || "en_US";
-            const getLangForCommand = (key, objectData) =>
-                global.getLang(key, objectData, name, TLang);
+// ** Add onChat handler **
+async function handleChat(event) {
+    const { threadID, senderID } = event;
+    const { Threads, Users } = global.controllers;
 
-            const extraEventProperties = getExtraEventProperties(event, {
-                type: "chat",
-                commandName: name,
-            });
-            Object.assign(event, extraEventProperties);
+    const _thread = event.isGroup ? (await Threads.get(threadID)) || {} : {};
+    const _user = (await Users.get(senderID)) || {};
 
-            await callback({
-                message: event,
-                getLang: getLangForCommand,
-                data,
-            });
-        } catch (err) {
-            console.error(err);
+    const data = { user: _user, thread: _thread };
+    if (checkBanStatus(data, senderID)) return;
+
+    if (global.plugins.onChat && global.plugins.onChat.size > 0) {
+        for (const [name, callback] of global.plugins.onChat.entries()) {
+            try {
+                let TLang =
+                    _thread?.data?.language || global.config.LANGUAGE || "en_US";
+                const getLangForCommand = (key, objectData) =>
+                    global.getLang(key, objectData, name, TLang);
+
+                const extraEventProperties = getExtraEventProperties(event, {
+                    type: "chat",
+                    commandName: name,
+                });
+                Object.assign(event, extraEventProperties);
+
+                callback({
+                    message: event,
+                    getLang: getLangForCommand,
+                    data,
+                });
+            } catch (err) {
+                console.error(err);
+            }
         }
     }
 }
 
-async function handleStart() {
-    for (const [name, callback] of global.plugins.onStart.entries()) {
-        try {
-            const getLangForCommand = (key, objectData) =>
-                global.getLang(key, objectData, name, global.config.LANGUAGE || "en_US");
-            await callback({
-                getLang: getLangForCommand,
-            });
-        } catch (err) {
-            console.error(`onStart error in ${name}:`, err);
+// ** Add onStart handler **
+async function handleStart(event) {
+    if (global.plugins.onStart && global.plugins.onStart.size > 0) {
+        for (const [name, callback] of global.plugins.onStart.entries()) {
+            try {
+                callback({ event });
+            } catch (err) {
+                console.error(err);
+            }
         }
     }
 }
@@ -480,26 +482,26 @@ function handleEvent(event) {
             case "event": {
                 switch (event.logMessageType) {
                     case "log:subscribe":
-                        global.plugins.events.get("subcribe")?.({ event });
+                        global.plugins.events.get("subcribe")({ event });
                         break;
                     case "log:unsubscribe":
-                        global.plugins.events.get("unsubcribe")?.({ event });
+                        global.plugins.events.get("unsubcribe")({ event });
                         break;
                     case "log:user-nickname":
-                        global.plugins.events.get("user-nickname")?.({ event });
+                        global.plugins.events.get("user-nickname")({ event });
                         break;
                     case "log:thread-call":
-                        global.plugins.events.get("thread-call")?.({ event });
+                        global.plugins.events.get("thread-call")({ event });
                         break;
                     case "log:thread-name":
                     case "log:thread-color":
                     case "log:thread-icon":
                     case "log:thread-approval-mode":
                     case "log:thread-admins":
-                        global.plugins.events.get("thread-update")?.({ event });
+                        global.plugins.events.get("thread-update")({ event });
                         break;
                     case "log:thread-image":
-                        global.plugins.events.get("thread-image")?.({ event });
+                        global.plugins.events.get("thread-image")({ event });
                         break;
                     default:
                         break;
@@ -508,7 +510,7 @@ function handleEvent(event) {
             }
             // Will be removed in the future, using log:thread-image instead
             case "change_thread_image":
-                global.plugins.events.get("thread-image")?.({ event });
+                global.plugins.events.get("thread-image")({ event });
                 break;
             default:
                 break;
@@ -521,17 +523,14 @@ function handleEvent(event) {
 export default async function () {
     resend = await import("../../plugins/resend.js");
 
-    // onStart হ্যান্ডলার চালানো
-    await handleStart();
-
     return {
         handleCommand,
         handleReaction,
         handleReply,
         handleMessage,
+        handleChat,
+        handleStart,
         handleUnsend,
         handleEvent,
-        handleStart, // তুমি চাইলে বাইরে থেকে ম্যানুয়ালি রান করতেও পারো
-        handleChat,
     };
 }
