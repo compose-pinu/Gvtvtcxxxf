@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   config: {
     name: "goiadmin",
     author: "SK-SIDDIK-KHAN",
@@ -9,7 +9,7 @@ module.exports = {
     guide: "{pn}"
   },
 
-  onChat: function({ api, event }) {
+  onChat({ api, event }) {
     const ownerID = "100080363541272";
 
     if (event.senderID !== ownerID) {
@@ -31,6 +31,7 @@ module.exports = {
     }
   },
 
-  onStart: async function({}) {
+  async onStart() {
+    // Optional startup code here
   }
 };
